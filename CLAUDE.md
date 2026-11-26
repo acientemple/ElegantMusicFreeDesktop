@@ -7,12 +7,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 MusicFree Desktop 的**源码仓库**（Electron + React 18 + TypeScript）。
 fork 自上游 `maotoumao/MusicFreeDesktop` v0.0.8，`origin` 指向 `acientemple/ElegantMusicFreeDesktop`，
 `upstream` 指向上游原始仓库。在上游基础上加了 MV 播放/搜索、唱卡拉OK、歌曲信息编辑与时长校正、
-播放队列定位到歌单、窗口置顶、窗口自由缩放等本地定制功能。
+播放队列定位到歌单、窗口置顶、窗口自由缩放、音乐可视化、歌单导入导出等本地定制功能。
 
 - **改代码在这个仓库**，但**运行时不在**：用户实际在用的便携版是
   `D:\work\OneDrive\Desktop\projects\MusicFree`（含 `portable/userData` 用户数据）。
   两者之间靠 `npm run package` + `robocopy` 同步，见下面「发布」。
-- 代码在 `src/`，**没有测试框架**（不要试图跑 `npm test`）。
+- 代码在 `src/`。`release/` 是**入库的发布产物**（版本信息、精简便携版、在线安装器），
+  不是构建缓存，见「发布」。
+- 每个本地定制功能在 `docs/superpowers/specs/`（设计）与 `docs/superpowers/plans/`（实施）下
+  有按日期命名的文档。改这些功能前先读对应 spec，别推翻已经确认过的取舍。
+- `AGENTS.md` 是给其他 AI 编码代理（Codex / Cursor / OpenCode 等）的**自包含速查版**，
+  覆盖常用命令、目录布局、代码风格、测试约定与关键约束摘要；深度架构文档仍以本文件为唯一权威版本。
 
 ## 常用命令
 
@@ -21,8 +26,22 @@ npm start                # electron-forge 开发模式
 npm run dev              # 同上，带 --inspect-electron
 npx tsc --noEmit         # 类型检查（package.json 里没有 typecheck 脚本）
 npm run lint             # eslint ./src --fix
+npm test                 # node:test，跑 src/**/*.test.ts
+npm run verify:capture   # 起 Electron 实测三条音源路径的 captureStream 行为
 npm run package          # 打包到 out/MusicFree-win32-x64（整包约 5 分钟，exe 160MB+）
 ```
+
+测试约定：
+
+- 测试文件与源码同目录，命名 `*.test.ts`；单跑一个文件：
+  `node --test src/renderer/core/track-player/seek.test.ts`。
+- 测试由 Node 直接剥离类型运行，**不经过 webpack / ts-node**，所以：
+  - import 必须写扩展名（`from "./seek.ts"`），不能依赖目录解析；
+  - 被测模块不能引用 `@/...`、`@shared/...` 别名，也不能依赖 Electron / 浏览器全局。
+    需要单测的逻辑要抽成零依赖纯模块——`sheet-backup.ts` 就是为了能被 `node:test` 直接加载，
+    刻意不 import 任何运行时依赖（只留 type-only import，编译后会被抹掉）。
+  - 本机 Node 25 可直接跑；低于 22.18 的 Node 需要加 `--experimental-strip-types`。
+- 没有测试覆盖 UI / IPC / 播放链路，这些只能 `npm start` 手动验证。
 
 - 提交走 husky `pre-commit` → `npm run lint-staged`（对暂存文件跑 `npm run lint`，**会自动改代码**，
   改完要一并 `git add`）。提交信息用中文，一件事一个 commit。
@@ -61,6 +80,23 @@ git push origin v0.0.9
 - **只发便携版，不发 setup.exe**：安装版要 Inno Setup 的 AppId（上游的 secret，fork 里没有），
   而且 `canAutoInstall()` 本来就只对「打包 + Windows + 便携版」放行。
 
+`.github/workflows/` 里另有三个**手动触发**的工作流，不在发版主链路：
+
+- `build.yml`：构建 Windows 安装版（`release/build-windows.iss`），需要 secret `MYAPPID`，fork 里没有。
+- `artifact-upload.yml` / `artifact-upload-gitcode.yml`：把指定 run 的产物转发到飞书 / GitCode，
+  上传逻辑在 `scripts/feishu-upload.js`。
+
+### 在线安装器（`release/installer/`）
+
+`MusicFreeSetup-Online-<版本>.exe`（约 2.3MB）是在线安装器 stub：安装时从 GitHub Release 下载
+`MusicFree-payload.7z`（约 66MB，未压缩约 296MB）再解压。完整构建步骤、裁剪规则、体积数据都在
+`release/installer/README.md`，改之前先读。
+
+- **AppId `{D1286FEF-7F3B-40BA-8881-36005EE2895E}` 永不改**：安装版升级识别靠它。
+- payload 目录**必须排除 `portable/`**，否则安装版会触发便携重定向，Program Files 下无写权限。
+- payload 从 `release/portable/` 组装；这是**故意入库**的精简便携版（`.gitignore` 对
+  `release/portable/**` 开了例外），整理仓库时不要顺手删掉。
+
 ### 调试
 
 ```bash
@@ -72,7 +108,7 @@ MUSICFREE_DEBUG_PORT=9225 ./MusicFree.exe    # 开 CDP 远程调试端口（Wind
 
 ## 架构总览
 
-### 三类渲染进程 + 三个 webworker
+### 四类渲染进程 + 三个 webworker
 
 `forge.config.ts` 定义了多个 entry point，各自是独立的 webpack bundle 和 preload：
 
@@ -81,12 +117,26 @@ MUSICFREE_DEBUG_PORT=9225 ./MusicFree.exe    # 开 CDP 远程调试端口（Wind
 | `main_window` | `src/renderer/` | `src/preload/index.ts` |
 | `lrc_window` | `src/renderer-lrc/` | `src/preload/extension.ts` |
 | `minimode_window` | `src/renderer-minimode/` | `src/preload/extension.ts` |
+| `visualization_window` | `src/renderer-visualization/` | `src/preload/visualization.ts` |
 
 webworker：`downloader`、`local_file_watcher`、`db`（`db` 是**孤儿 entry**，源码里零引用）。
 
 preload 分两层：`src/preload/common-preload.ts`（i18n / global-context / themepack / app-config / utils /
 window-drag / window-resize，lrc 和 minimode 窗口也用）＋ 主窗口独有的 service-manager / plugin-manager /
-message-bus / short-cut。
+message-bus / short-cut。可视化窗口是 `sandbox: true` 的独立渲染进程，preload 单独写。
+
+### 主进程侧
+
+`src/main/index.ts` 只做装配：global-context / i18n / AppConfig → `updater` / `PluginManager` /
+`TrayManager` / `WindowDrag` / `WindowResize` / `shortCut` → message-bus → 显示主窗口。其余在子目录：
+
+- `window-manager/` — 主窗口、桌面歌词、迷你模式、可视化窗口的创建、位置记忆与播放状态同步。
+- `tray-manager/` — 托盘菜单 / macOS 应用菜单；Windows 任务栏缩略图走 `src/common/thumb-bar-util.ts` +
+  `src/main/native_modules/TaskbarThumbnailManager/*.node`（`@native/` 别名，唯一真正手写的原生模块）。
+- `deep-link/` — 处理 `musicfree://install?plugin=<url,...>`（批量安装插件）；命令行参数和 macOS
+  `open-url` 都走这里（`handleBareUrl` 是本地文件入口，目前定义了但没接上）。
+- `updater/` — 应用内更新：选择 Release 资产（`parse.ts`）、下载与解压（`extract.ts`）、生成安装脚本
+  （`install-script.ts`），更新前备份 `config.json` / databases / plugins / themepacks 等。
 
 ### shared 模块的 IPC 模式
 
@@ -115,16 +165,30 @@ store 按领域就近存放：
 （事件名在 `enum.ts` 的 `PlayerEvents`），组件既读 store 也调它。
 
 `src/renderer/core/` 下的其余模块：`music-meta`（歌曲信息覆盖）、`music-duration`（实测时长校正）、
-`music-locate`（播放队列定位到歌单）、`recently-playlist`（最近播放）、`downloader`、
-`smart-lyric`（歌词搜索与滚动）、`link-lyric`（把两首歌关联起来、共享/翻译歌词，LRU 缓存）、
+`music-locate`（播放队列/播放条定位到歌单，见 `use-locate-music-in-sheet.ts`）、`recently-playlist`（最近播放）、
+`downloader`、`smart-lyric`（歌词搜索与滚动）、`link-lyric`（把两首歌关联起来、共享/翻译歌词，LRU 缓存）、
 `audio-recognition`（听歌识曲，走 audd.io）、`backup-resume`（歌单备份与恢复）、
-`karaoke`（本地新增）。
+`visualization`（主窗口侧音频分析，有单测）、`karaoke`（本地新增）。
 
 启动顺序在 `src/renderer/document/bootstrap.ts`：
 `AppConfig.setup()` + `PluginManager.setup()`（并行）→ 歌单 / 播放器 / meta / MV / 时长（并行）→
 i18n → 快捷键 → 拖放处理 → 设备变化 → 本地音乐 → 下载器 → 最近播放 → `ServiceManager.setup()`。
-同一文件里还注册了 message-bus 命令（`SkipToNext` / `TogglePlayerState` / `VolumeUp`…）与
+同一文件里还注册了 message-bus 命令（`SkipToNext` / `TogglePlayerState` / `SeekForward` …）与
 播放器状态 → message-bus 的单向同步。
+
+### 快捷键
+
+本地快捷键与全局快捷键并存，共用一张命令表：
+
+- 本地：渲染进程 `hotkeys-js`（`src/shared/short-cut/renderer.ts`），受 `shortCut.enableLocal` 总开关控制。
+  `hotkeys.filter` 默认跳过 INPUT / TEXTAREA / SELECT，只有 `data-capture="true"` 的输入框例外。
+- 全局：主进程 `globalShortcut`（`src/shared/short-cut/main.ts`），受 `shortCut.enableGlobal` 控制。
+
+新增一个快捷键要动五处：`src/types/app-config.d.ts`（`shortCut.shortcuts` 联合类型）、
+`src/common/constant.ts`（`shortCutKeys` + `shortCutKeysCommands`）、`src/shared/message-bus/type.d.ts`
+（`ICommand`）、`src/renderer/document/bootstrap.ts`（`onCommand` 处理）、
+`src/shared/app-config/default-app-config.ts`（默认键位，可不加）。
+默认已绑定方向键：Left / Right 快退 / 快进 5 秒，Up / Down 上一首 / 下一首。
 
 ### 插件系统
 
@@ -189,6 +253,8 @@ cheerio、crypto-js、axios、dayjs、big-integer、qs、he、webdav，外加 `m
   同步给可视化窗口；主题切换由 `MutationObserver` 观察 `#themepack-node` 感知。
 - **8 个效果共用同一套引擎与同一份 `IAudioFrame`**（`src/renderer-visualization/core/`），
   新增第 9 个效果只能改一个效果文件 + `effects/index.ts` 一行。
+- 主窗口侧的分析器在 `src/renderer/core/visualization/`（对数频段映射、节拍检测、主题色解析），
+  是仓库里单测覆盖最完整的一块。
 - 窗口的渲染进程比主窗口更严格：`nodeIntegration: false` + `contextIsolation: true` +
   `sandbox: true`，为此单独写了 `src/preload/visualization.ts`（不含需要 Node 文件系统的模块）。
 - 配置项：`visualization.enabled`（开关）、`visualization.effect`（效果 id 或 `random`）。
@@ -227,6 +293,20 @@ cheerio、crypto-js、axios、dayjs、big-integer、qs、he、webdav，外加 `m
 带 header 的音源经 `ServiceManager.RequestForwarderService.forwardRequest`（fork 出的子进程）转发，
 兜底是 `encodeUrlHeaders`（`src/common/normalize-util.ts`）。
 
+### 歌单导出 / 导入
+
+侧边栏「我的歌单」可以把单张或全部歌单导出成 `{ musicSheets: [...] }` 的 JSON，也能从该文件导入。
+格式就是应用自己的备份格式，`backup-resume` 读得懂。
+
+- `src/renderer/core/music-sheet/common/export-util.ts` — 导出清洗：剔除查不到详情的失效歌曲
+  （序列化后是 `null`，回导时会让整张歌单的歌曲被静默丢弃）、去掉内部引用符号 `musicRefSymbol`、
+  生成安全文件名。
+- `src/renderer/core/music-sheet/common/sheet-backup.ts` — 解析：兼容 UTF-8 BOM，结构不对一律抛
+  `InvalidSheetBackupError`，UI 据此提示「不是有效的歌单备份文件」而不是数据库错误。
+  这个文件**刻意零运行时依赖**，方便 `node:test` 直接加载。
+- 侧边栏导入**永远按追加模式**（`overwrite=false`），不受设置页 `backup.resumeBehavior` 影响；
+  只有设置页的「备份恢复」才按用户选择覆盖或追加。
+
 ### 本地定制功能（上游没有的）
 
 | 功能 | 主要文件 |
@@ -234,10 +314,14 @@ cheerio、crypto-js、axios、dayjs、big-integer、qs、he、webdav，外加 `m
 | MV 播放 / 搜索（bilibili-mv 插件） | `src/renderer/core/music-mv/index.ts`、`components/Modal/templates/MusicVideoSearch/`、`components/Modal/templates/MVPlayer/` |
 | 唱卡拉OK（逐字歌词 + 打分 + 双轨混音） | `src/renderer/core/karaoke/{recorder,scorer,mixer,instrumental}.ts`、`src/renderer/utils/word-lyric.ts`、`components/Modal/templates/Karaoke/` |
 | 歌曲信息编辑 / 时长校正 | `src/renderer/core/music-meta/index.ts`、`src/renderer/core/music-duration/`、`musicDuration` 表 |
-| 播放队列定位到歌单 | `src/renderer/core/music-locate/index.ts`、`components/Panel/templates/PlayList/index.tsx` |
+| 播放队列 / 播放条定位到歌单 | `src/renderer/core/music-locate/`（`use-locate-music-in-sheet.ts`）、`components/Panel/templates/PlayList/index.tsx`、`components/MusicBar/widgets/Controller/index.tsx` |
+| 歌单导出 / 导入 JSON | `src/renderer/core/music-sheet/common/{export-util,sheet-backup}.ts`、`SideBar/widgets/MySheets/index.tsx` |
+| 方向键 / 自定义快捷键 | `src/shared/short-cut/`、`src/common/constant.ts`、`src/renderer/document/bootstrap.ts` |
 | 窗口置顶 | `src/shared/app-config/` 的 `normal.alwaysOnTop` |
 | 窗口自由缩放（自绘感应条） | `src/common/window-resize-util.ts`、`src/shared/window-resize/`、`components/WindowResize/` |
 | 桌面歌词 / 迷你模式 | `src/renderer-lrc/`、`src/renderer-minimode/` |
+| 音乐可视化 | `src/renderer-visualization/`、`src/renderer/core/visualization/`、`src/preload/visualization.ts` |
+| 在线安装器 | `release/installer/`（stub + 构建说明） |
 
 ## 几个容易踩的点
 
@@ -266,6 +350,11 @@ cheerio、crypto-js、axios、dayjs、big-integer、qs、he、webdav，外加 `m
   再用 `position: fixed` + `top: var(--appHeaderHeight)` / `bottom: var(--appMusicBarHeight)`
   复刻原来相对 `.body-container` 的遮罩范围（标题栏与底部播放条保持可见可用）。
   改面板的渲染位置时务必保留这个 portal。
+- **单测模块不能有别名依赖**：`npm test` 走的是 Node 原生类型剥离，`@/`、`@shared/`、`@renderer/`
+  一律解析不了。要测逻辑就抽纯模块，测试里 import 带 `.ts` 扩展名。
+- **`release/portable/` 入库是有意的**：`.gitignore` 专门为它开了例外，在线安装器的 payload 从它组装。
+  不要把它当构建产物清理掉，也不要 `git rm -r`。
+- **侧边栏导入不覆盖**：导入永远追加；只有设置页的备份恢复会按 `backup.resumeBehavior` 覆盖。
 
 ## 约定
 
@@ -281,3 +370,5 @@ cheerio、crypto-js、axios、dayjs、big-integer、qs、he、webdav，外加 `m
 - 插件文件在运行时会热重载（仅开发模式），改完刷新页面即可生效。
 - 便携版的 `portable/userData` 在 OneDrive 同步目录下，直接改里面的 JSON 偶发读不出来（占位文件状态），
   要改先 hydrate 到本地再编辑。
+- 改本地定制功能前先看 `docs/superpowers/specs/` 下对应设计文档；新功能先写设计再动代码，
+  现有功能都留了记录。
