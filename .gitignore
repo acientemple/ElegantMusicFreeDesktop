@@ -117,3 +117,9 @@ undefinedelectron-log-preload.js
 !release/portable/resources/app/node_modules/**
 !release/portable/resources/app/.webpack/
 !release/portable/resources/app/.webpack/**
+
+# 本地导出的歌单备份（含个人歌单数据，禁止入库）
+MusicFree-*.json
+
+# AGENTS.md 的临时备份
+AGENTS.md.bak.*
