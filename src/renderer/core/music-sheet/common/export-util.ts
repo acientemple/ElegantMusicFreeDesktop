@@ -8,7 +8,7 @@ const ILLEGAL_FILE_NAME_CHARS = /[\\/:*?"<>|]/g;
  * 故意放宽：歌单对象有多种来源（数据库里的 IDBMusicSheetItem 只存 id，
  * 补全后的详情才是完整歌曲），这里只关心导出真正用到的字段。
  */
-interface IExportSheet {
+export interface IExportSheet {
     title?: string;
     musicList?: any[];
     [k: string]: any;
