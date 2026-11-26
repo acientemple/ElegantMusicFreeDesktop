@@ -44,7 +44,8 @@ npm run package          # 打包到 out/MusicFree-win32-x64（整包约 5 分�
 - 没有测试覆盖 UI / IPC / 播放链路，这些只能 `npm start` 手动验证。
 
 - 提交走 husky `pre-commit` → `npm run lint-staged`（对暂存文件跑 `npm run lint`，**会自动改代码**，
-  改完要一并 `git add`）。提交信息用中文，一件事一个 commit。
+  改完要一并 `git add`）。提交信息用英文 Conventional Commits（前缀 `feat:` / `fix:` / `docs:` /
+  `refactor:` / `chore:`），一件事一个 commit。
 - `npm run package` 之前先 `npx tsc --noEmit`；webpack 用 `fork-ts-checker`，类型错误不一定会让打包失败。
 
 ### 发布到便携版
