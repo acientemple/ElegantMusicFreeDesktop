@@ -16,7 +16,7 @@
 - 导入强制追加（`resume(..., false)`），不受 `backup.resumeBehavior` 配置影响，绝不覆盖/清空现有歌单。
 - 不新增依赖；不修改 `portable/userData` 下任何内容。
 - 打包部署时 robocopy 不带 `/MIR`。
-- 代码改动全部在源码仓库 `D:\work\MusicFreeDesktop`，不是便携版目录。
+- 代码改动全部在源码仓库 `D:\work\projects\MusicFreeDesktop`，不是便携版目录。
 
 ## Review Focus
 
