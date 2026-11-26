@@ -13,6 +13,15 @@ export class InvalidSheetBackupError extends Error {
 }
 
 /**
+ * 序列化备份文件内容（`{ musicSheets: [...] }`）。
+ * 导出器 `buildSheetBackupJson` 在清洗完歌单后调用这里，
+ * 保证「写文件」和「读文件」用的是同一份包络定义，单测可以真实往返。
+ */
+export function serializeSheetBackup(sheets: IExportSheet[]): string {
+    return JSON.stringify({ musicSheets: sheets });
+}
+
+/**
  * 解析「恢复歌单」用的备份 JSON（`{ musicSheets: [...] }`）。
  * 兼容带 UTF-8 BOM 的文本；结构不对一律抛 InvalidSheetBackupError，
  * 避免把 null / 异常结构带进 BackupResume 里半途静默失败。
@@ -22,8 +31,11 @@ export class InvalidSheetBackupError extends Error {
  */
 export function parseSheetBackupJson(raw: string): IExportSheet[] {
     let data: any;
+    const text = String(raw);
+    // 用码点判断并去掉开头的 UTF-8 BOM，避免源码里出现不可见字符
+    const content = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
     try {
-        data = JSON.parse(String(raw).replace(/^﻿/, ""));
+        data = JSON.parse(content);
     } catch {
         throw new InvalidSheetBackupError();
     }

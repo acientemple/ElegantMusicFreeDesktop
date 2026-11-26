@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
     parseSheetBackupJson,
+    serializeSheetBackup,
     InvalidSheetBackupError,
 } from "./sheet-backup.ts";
 
@@ -29,7 +30,7 @@ test("空歌单列表原样返回空数组", () => {
 });
 
 test("带 UTF-8 BOM 的文件可以解析", () => {
-    const raw = "﻿" + JSON.stringify({
+    const raw = "\uFEFF" + JSON.stringify({
         musicSheets: [{ title: "BOM", musicList: [] }],
     });
     assert.equal(parseSheetBackupJson(raw)[0].title, "BOM");
@@ -67,7 +68,7 @@ test("musicList 不是数组抛 InvalidSheetBackupError", () => {
     );
 });
 
-test("导出器使用的包络结构可以解析回来", () => {
+test("导出器使用的序列化可以原样解析回来", () => {
     const sheets = [
         {
             title: "往返",
@@ -75,7 +76,7 @@ test("导出器使用的包络结构可以解析回来", () => {
         },
     ];
     assert.deepEqual(
-        parseSheetBackupJson(JSON.stringify({ musicSheets: sheets })),
+        parseSheetBackupJson(serializeSheetBackup(sheets)),
         sheets,
     );
 });

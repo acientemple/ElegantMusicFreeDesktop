@@ -1,4 +1,5 @@
 import { musicRefSymbol } from "@/common/constant";
+import { serializeSheetBackup } from "./sheet-backup";
 
 /** Windows 文件名非法字符 */
 const ILLEGAL_FILE_NAME_CHARS = /[\\/:*?"<>|]/g;
@@ -37,9 +38,7 @@ export function sanitizeSheetForExport(
 
 /** 构建可被「恢复歌单」读回的备份 JSON */
 export function buildSheetBackupJson(sheets: IExportSheet[]): string {
-    return JSON.stringify({
-        musicSheets: sheets.map(sanitizeSheetForExport),
-    });
+    return serializeSheetBackup(sheets.map(sanitizeSheetForExport));
 }
 
 /** 生成导出文件名 */
