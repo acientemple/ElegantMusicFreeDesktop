@@ -16,6 +16,11 @@ import {
     buildExportFileName,
     buildSheetBackupJson,
 } from "@/renderer/core/music-sheet/common/export-util";
+import BackupResume from "@/renderer/core/backup-resume";
+import {
+    InvalidSheetBackupError,
+    parseSheetBackupJson,
+} from "@/renderer/core/music-sheet/common/sheet-backup";
 
 
 export default function MySheets() {
@@ -163,6 +168,50 @@ export default function MySheets() {
         }
     }
 
+    /**
+     * 从应用自己导出的 JSON 备份恢复歌单。
+     * 一律按追加模式导入（overwrite=false），不受设置页
+     * `backup.resumeBehavior` 影响——侧边栏导入绝不覆盖已有歌单。
+     */
+    async function onImportSheets() {
+        const result = await dialogUtil.showOpenDialog({
+            properties: ["openFile"],
+            filters: [
+                {
+                    name: "MusicFree",
+                    extensions: ["json"],
+                },
+            ],
+            title: t("side_bar.import_sheet_from_file"),
+        });
+        if (result.canceled || !result.filePaths?.length) {
+            return;
+        }
+        try {
+            const raw = (await fsUtil.readFile(
+                result.filePaths[0],
+                "utf-8",
+            )) as string;
+            const sheets = parseSheetBackupJson(raw);
+            if (!sheets.length) {
+                toast.error(t("side_bar.import_sheet_empty"));
+                return;
+            }
+            await BackupResume.resume({ musicSheets: sheets }, false);
+            toast.success(t("side_bar.import_sheet_success"));
+        } catch (e) {
+            if (e instanceof InvalidSheetBackupError) {
+                toast.error(t("side_bar.import_sheet_invalid"));
+                return;
+            }
+            toast.error(
+                t("side_bar.import_sheet_fail", {
+                    reason: e?.message ?? "",
+                }),
+            );
+        }
+    }
+
     return (
         <div className="side-bar-container--my-sheets">
             <div className="divider"></div>
@@ -188,6 +237,17 @@ export default function MySheets() {
                     }}
                 >
                     <SvgAsset iconName="arrow-left-end-on-rectangle"></SvgAsset>
+                </div>
+                <div
+                    role="button"
+                    className="option-btn"
+                    title={t("side_bar.import_sheet_from_file")}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onImportSheets();
+                    }}
+                >
+                    <SvgAsset iconName="folder-open"></SvgAsset>
                 </div>
                 <div
                     role="button"
