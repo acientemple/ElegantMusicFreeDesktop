@@ -58,6 +58,24 @@
 3. **再次播放同一首**（`previewClipKeys` 内存集合）：
    实测确认过的片段条目记下来，下次播放前就能判定，直接换完整版。
 
+### 挑选完整版时，基准时长必须用实测的
+
+这是实现时踩到的第二个坑，光把「判定」改成两路还不够。
+
+原来的挑选规则是「候选必须明显比原曲长：≥ `max(原时长 + 60, 120)` 秒」，
+而「原时长」取的是**声明时长**。对「声明 4:35、实测 30 秒」这种情况：
+
+- 声明时长 294 秒 → 要求候选 ≥ 354 秒
+- 真正的完整版就是 294 秒 → **被误判成不够格**，一个候选都选不出来
+
+于是检索照常发出去、结果也拿到了，最后却「什么都没换」。
+
+修法：判定基准改用**实测时长**（实测优先，没有才回退到声明时长）。
+基准是 30 秒时，要求降到 `max(30+60, 120)` = 120 秒，4:35 的完整版就够格了。
+候选本身「仍然是片段」的那道闸不变（一分钟以内一律不算完整版）。
+
+实测证据（网易热门「雨夜的浪漫」）：歌单里写着 `04:54`，真实音频 `30.04` 秒。
+
 ### 防来回换
 
 完整版候选本身也可能还是片段（插件给的候选质量参差）。
@@ -69,16 +87,19 @@
 1. `src/renderer/core/music-full-version/pure.ts`
    - 新增纯函数 `isPreviewItem(declaredDuration, measuredDuration)`：
      任一 ≤ `PREVIEW_MAX_DURATION` 即为片段。补单测。
+   - `isFullVersionCandidate` / `pickFullVersion` 增加可选的 `baseDuration`：
+     判定基准时长，实测优先。补单测。
 2. `src/renderer/core/music-full-version/index.ts`
    - `isPreviewClip` / `findFullVersion` 改用两路判据；
-   - `findFullVersion` 增加可选的 `measuredDuration` 参数；
+   - `findFullVersion` 增加可选的 `measuredDuration` 参数，
+     并用它算挑选完整版的基准时长；
    - 新增 `previewClipKeys`（实测确认是片段）、`autoReplacedTargets`（防循环）；
    - 新增 `markPreviewClip` / `markAutoReplaced`；
    - `clearFullVersionCache` 一并清这两个集合。
 3. `src/renderer/core/track-player/index.ts`
    - `captureRealDuration` 里，实测时长 ≤ 60 秒时调 `checkPreviewClip()`；
-   - 新增 `checkPreviewClip()`：检索 → 校验当前仍是这首 → 替换并从头播 →
-     标记新条目、顺手把歌单里的同一首也换掉 → 提示「已自动换成完整版」。
+   - 新增 `checkPreviewClip()`：检索 → 校验当前仍是这首 → 标记 → 替换并从头播 →
+     顺手把歌单里的同一首也换掉 → 提示「已自动换成完整版」。
 
 ## 取舍与已知限制
 
