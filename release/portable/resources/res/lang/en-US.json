@@ -155,6 +155,11 @@
     "export_sheet_success": "Exported successfully",
     "export_sheet_fail": "Export failed: {{reason}}",
     "export_sheet_not_found": "Playlist not found",
+    "import_sheet_from_file": "Import Playlists from File",
+    "import_sheet_success": "Imported successfully",
+    "import_sheet_fail": "Import failed: {{reason}}",
+    "import_sheet_invalid": "Not a valid playlist backup file",
+    "import_sheet_empty": "No playlists in this file",
     "unstar_sheet": "Unstar",
     "recently_play": "Recently Play"
   },
@@ -219,7 +224,8 @@
   },
   "playback": {
     "source_recovered": "Playback was interrupted, switched to another source and continued",
-    "play_failed": "Playback failed"
+    "play_failed": "Playback failed",
+    "full_version_replaced": "Switched to the full version automatically"
   },
   "modal": {
     "add_to_my_sheets": "Add to Playlist",
