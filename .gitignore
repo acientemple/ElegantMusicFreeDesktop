@@ -118,6 +118,12 @@ undefinedelectron-log-preload.js
 !release/portable/resources/app/.webpack/
 !release/portable/resources/app/.webpack/**
 
+# 便携版直接运行后产生的东西：解压出来的 exe 与运行时用户数据
+# （用户设置、歌单数据库、已装插件、日志），不能入库。
+# 必须写在上面的 !release/portable/** 之后才生效。
+release/portable/MusicFree.exe
+release/portable/portable/
+
 # 本地导出的歌单备份（含个人歌单数据，禁止入库）
 MusicFree-*.json
 
