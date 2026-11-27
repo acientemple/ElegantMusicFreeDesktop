@@ -681,3 +681,24 @@ export function hasWordTimestamp(rawLrc?: string | null): boolean {
     }
     return /<\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?>/.test(rawLrc);
 }
+
+/**
+ * 不参与「搜索歌词」的音源。
+ *
+ * 这些插件检索到的是视频条目而不是歌词：它们虽然声明了支持歌词检索，
+ * 但 `getLyric` 取到的多半是「暂无字幕」占位，放进歌词结果里只会误导。
+ * 用前缀匹配是为了同时盖住「哔哩哔哩音乐」与「哔哩哔哩MV」，
+ * 以后再加 B 站的插件也不用改这里。
+ */
+const LYRIC_SEARCH_EXCLUDED_PLATFORMS = ["哔哩哔哩"];
+
+/** 这个音源要不要排除在歌词检索之外 */
+export function isLyricSearchExcluded(platform?: string | null): boolean {
+    const name = String(platform ?? "").trim();
+    if (!name) {
+        return false;
+    }
+    return LYRIC_SEARCH_EXCLUDED_PLATFORMS.some(
+        (excluded) => name === excluded || name.startsWith(excluded),
+    );
+}

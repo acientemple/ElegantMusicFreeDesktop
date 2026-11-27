@@ -4,6 +4,7 @@ import searchResultStore from "./searchResultStore";
 import { produce } from "immer";
 import { useTranslation } from "react-i18next";
 import PluginManager from "@shared/plugin-manager/renderer";
+import { isLyricSearchExcluded } from "@/common/lyric-util";
 
 
 export default function () {
@@ -30,7 +31,10 @@ export default function () {
                 plugins = [tgtPlugin];
             }
         } else {
-            plugins = PluginManager.getSearchablePlugins("lyric");
+            // 视频类音源（哔哩哔哩音乐 / 哔哩哔哩MV）检索不到歌词，不参与检索
+            plugins = PluginManager.getSearchablePlugins("lyric").filter(
+                (plugin) => !isLyricSearchExcluded(plugin.platform),
+            );
         }
         if (plugins.length === 0) {
             searchResultStore.setValue(
