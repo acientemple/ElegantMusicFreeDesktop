@@ -320,7 +320,7 @@ cheerio、crypto-js、axios、dayjs、big-integer、qs、he、webdav，外加 `m
 | 方向键 / 自定义快捷键 | `src/shared/short-cut/`、`src/common/constant.ts`、`src/renderer/document/bootstrap.ts` |
 | 窗口置顶 | `src/shared/app-config/` 的 `normal.alwaysOnTop` |
 | 窗口自由缩放（自绘感应条） | `src/common/window-resize-util.ts`、`src/shared/window-resize/`、`components/WindowResize/` |
-| 桌面歌词 / 迷你模式 | `src/renderer-lrc/`、`src/renderer-minimode/` |
+| 桌面歌词 / 迷你模式 | `src/renderer-lrc/`、`src/renderer-minimode/`；迷你模式入口在顶部标题栏与歌词面板右上角 |
 | 音乐可视化 | `src/renderer-visualization/`、`src/renderer/core/visualization/`、`src/preload/visualization.ts` |
 | 在线安装器 | `release/installer/`（stub + 构建说明） |
 
