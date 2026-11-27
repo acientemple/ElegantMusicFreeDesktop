@@ -11,6 +11,7 @@
  */
 
 import { getMediaPrimaryKey } from "@/common/media-util";
+import { normalizeDuration } from "@/common/duration-util";
 import { delay } from "@/common/time-util";
 import MusicSheet from "@renderer/core/music-sheet";
 import { getVerifiedDuration } from "@renderer/core/music-duration";
@@ -160,7 +161,12 @@ export async function findFullVersion(
         searchedKeys.add(key);
     }
 
-    const picked = pickFullVersion(musicItem, merged);
+    // 判定基准用实测时长：原曲「声明 4:35、实测 30 秒」时，
+    // 真正的完整版就是 4:35，拿声明时长当基准会把它误判掉
+    const measured = measuredDuration ?? getVerifiedDuration(musicItem);
+    const baseDuration = measured ?? normalizeDuration(musicItem.duration) ?? 0;
+
+    const picked = pickFullVersion(musicItem, merged, baseDuration);
     if (picked) {
         replacementCache.set(key, picked);
     }

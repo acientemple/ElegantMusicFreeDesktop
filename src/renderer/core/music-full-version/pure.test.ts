@@ -196,3 +196,35 @@ test("声明的是完整时长、实际只有几十秒，也是片段", () => {
     // 两个都不知道，判断不了，不判定
     assert.equal(isPreviewItem(undefined, undefined), false);
 });
+
+test("原曲声明完整时长、实测只有几十秒时，真正的完整版要能选出来", () => {
+    // 原曲声明 4:54、实测 30 秒 —— 完整版的时长就是 4:54
+    const original = { platform: "p", id: "1", duration: 294 };
+    const candidate = { platform: "p", id: "2", duration: 294, isOriginArtist: true };
+
+    // 按声明时长当基准：候选得比 4:54 还长 60 秒，正常的完整版会被误杀
+    assert.equal(pickFullVersion(original, [candidate]), null);
+
+    // 按实测时长当基准：4:54 的完整版就够格了
+    const picked = pickFullVersion(original, [candidate], 30);
+    assert.equal(picked?.id, "2");
+});
+
+test("基准时长不会放过仍然是片段的候选", () => {
+    const original = { platform: "p", id: "1", duration: 294 };
+    // 候选也是 30 秒的片段，不管基准多小都不该选
+    assert.equal(
+        pickFullVersion(original, [{ platform: "p", id: "2", duration: 30 }], 30),
+        null,
+    );
+    // 一分钟整也算片段
+    assert.equal(
+        pickFullVersion(original, [{ platform: "p", id: "2", duration: 60 }], 30),
+        null,
+    );
+    // 超过一分钟、且达到下限才算
+    assert.equal(
+        pickFullVersion(original, [{ platform: "p", id: "2", duration: 130 }], 30)?.id,
+        "2",
+    );
+});

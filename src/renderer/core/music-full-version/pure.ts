@@ -105,10 +105,15 @@ export function isPreviewItem(
  * - 必须有时长，否则判断不了
  * - 不能仍然是片段
  * - 必须明显比原曲长
+ *
+ * @param baseDuration 判定基准时长。原曲是「声明 4:35、实测 30 秒」的片段时，
+ *   基准必须用实测的 30 秒而不是声明的 4:35 ——
+ *   否则真正的完整版（4:35）会因为「没比 4:35 长 60 秒」被误判掉。
  */
 export function isFullVersionCandidate(
     original: IVersionItem | null | undefined,
     candidate: IVersionItem | null | undefined,
+    baseDuration?: number | null,
 ): boolean {
     if (!candidate || isSameSong(original, candidate)) {
         return false;
@@ -120,7 +125,8 @@ export function isFullVersionCandidate(
     if (duration <= PREVIEW_MAX_DURATION) {
         return false;
     }
-    const originalDuration = normalizeDuration(original?.duration) ?? 0;
+    const originalDuration =
+        normalizeDuration(baseDuration) ?? normalizeDuration(original?.duration) ?? 0;
     const required = Math.max(
         originalDuration + MIN_EXTRA_SECONDS,
         MIN_FULL_DURATION,
@@ -131,13 +137,16 @@ export function isFullVersionCandidate(
 /**
  * 从候选里挑一个最好的完整版。
  * 原唱优先，其次时长长的优先。
+ *
+ * @param baseDuration 判定基准时长，见 isFullVersionCandidate 的说明
  */
 export function pickFullVersion<T extends IVersionItem>(
     original: IVersionItem | null | undefined,
     candidates: T[],
+    baseDuration?: number | null,
 ): T | null {
     const valid = (candidates ?? []).filter((it) =>
-        isFullVersionCandidate(original, it),
+        isFullVersionCandidate(original, it, baseDuration),
     );
     if (!valid.length) {
         return null;
