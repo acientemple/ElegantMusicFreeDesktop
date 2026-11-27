@@ -224,7 +224,8 @@
   },
   "playback": {
     "source_recovered": "Playback was interrupted, switched to another source and continued",
-    "play_failed": "Playback failed"
+    "play_failed": "Playback failed",
+    "full_version_replaced": "Switched to the full version automatically"
   },
   "modal": {
     "add_to_my_sheets": "Add to Playlist",

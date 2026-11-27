@@ -224,7 +224,8 @@
   },
   "playback": {
     "source_recovered": "音源中斷，已自動換源繼續播放",
-    "play_failed": "播放失敗"
+    "play_failed": "播放失敗",
+    "full_version_replaced": "已自動換成完整版"
   },
   "modal": {
     "add_to_my_sheets": "添加到我的歌單",

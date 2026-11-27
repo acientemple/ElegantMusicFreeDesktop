@@ -40,6 +40,10 @@ import { isEmptyLyricSource } from "@/common/lyric-util";
 import { fsUtil } from "@shared/utils/renderer";
 import PluginManager from "@shared/plugin-manager/renderer";
 import { correctDurationByMeasured } from "@renderer/core/music-duration";
+import {
+    findFullVersion,
+    replaceInSheets,
+} from "@renderer/core/music-full-version";
 import { i18n } from "@/shared/i18n/renderer";
 import { toast } from "react-toastify";
 
@@ -374,6 +378,19 @@ class TrackPlayer {
 
         this.setPlayerState(PlayerState.Buffering);
         this.audioController.prepareTrack?.(nextMusicItem);
+
+        // 试听片段（一般一分钟以内）先找完整版，找到就换掉再播
+        const fullVersion = await findFullVersion(nextMusicItem);
+        if (fullVersion) {
+            await this.replaceMusic(nextMusicItem, fullVersion, {
+                play: true,
+                restartFromStart: true,
+            });
+            // 本地歌单里的同一首也换掉，下次从歌单播不用重新检索
+            replaceInSheets(nextMusicItem, fullVersion);
+            toast.success(i18n.t("playback.full_version_replaced"));
+            return;
+        }
 
         try {
             const { mediaSource, quality } = await this.fetchMediaSource(nextMusicItem, intendedQuality);

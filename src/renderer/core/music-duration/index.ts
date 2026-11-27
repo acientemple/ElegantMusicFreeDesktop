@@ -10,9 +10,10 @@
 import { getMediaPrimaryKey } from "@/common/media-util";
 import Store from "@/common/store";
 import musicSheetDB from "@/renderer/core/db/music-sheet-db";
+import { normalizeDuration } from "@/common/duration-util";
 
-/** 超过这个秒数（3 小时）基本可以断定是把毫秒当成秒了 */
-const MAX_PLAUSIBLE_DURATION = 3 * 60 * 60;
+export { normalizeDuration };
+
 /** 播出来的音频比标称时长短这么多，说明是试听片段，不拿它当歌曲时长 */
 const PREVIEW_RATIO = 0.6;
 /** 两者相差在这个范围内才算同一首歌，差得太多就以插件给的为准 */
@@ -58,24 +59,6 @@ export function getVerifiedDuration(
         return undefined;
     }
     return durationMap.get(getMediaPrimaryKey(musicItem));
-}
-
-/**
- * 把插件给的时长归一化成秒。
- * 毫秒写成了秒的情况很常见（数值大得离谱），这里一并纠正。
- */
-export function normalizeDuration(duration?: number | null): number | undefined {
-    if (typeof duration !== "number" || !isFinite(duration) || duration <= 0) {
-        return undefined;
-    }
-    if (duration > MAX_PLAUSIBLE_DURATION) {
-        const asMs = duration / 1000;
-        if (asMs > 0 && asMs <= MAX_PLAUSIBLE_DURATION) {
-            return Math.round(asMs);
-        }
-        return undefined;
-    }
-    return Math.round(duration);
 }
 
 /** 记下这首歌的时长 */
