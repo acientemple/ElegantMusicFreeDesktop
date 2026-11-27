@@ -62,15 +62,39 @@ MusicDetail 是盖在所有页面上的全屏覆盖层，拿它底下的歌单�
   播放队列里对应的条目也换掉并从头播；
 - 用户在歌单页看到的时长、来源标签随之更新，不必再回到歌单里右键一次。
 
+## 顺带修掉的第二个问题：单个插件挂死，弹窗永远转圈
+
+排查替换行为时发现「搜索歌曲」弹窗经常**一直加载、一个候选都不出**。
+逐插件实测（`getMusicAlternatives`，歌名「119」）：
+
+| 插件 | 耗时 | 结果 |
+| --- | --- | --- |
+| 完整版搜索 | 2.4s | 20 个候选 |
+| 酷狗音乐 | 1.8s | 4 个候选 |
+| QQ音乐 | **> 25s 不返回** | 挂死 |
+
+弹窗用 `Promise.allSettled` 并发问所有插件，只要有一个不回，
+`await` 就永远不结束 —— 别的插件明明已经搜到结果了，用户却什么都看不到。
+（插件是自己写的网络请求，没有自带超时。）
+
+修法：每个插件的调用单独套一层 8 秒兜底，超时就当它「没搜到」，
+不影响其它插件的结果。自动换完整版那条链路早就有整体超时（8 秒），
+不受这个问题影响。
+
 ## 改动
 
 1. `src/renderer/components/Modal/templates/MusicAlternatives/index.tsx`
    - `applyFullVersion` 改为先 `await replaceInSheets(original, alternative)`，
      再 `await trackPlayer.replaceMusic(...)`；
-   - `IProps` 去掉 `sheetType`，不再需要按来源区分替换范围。
+   - `IProps` 去掉 `sheetType`，不再需要按来源区分替换范围；
+   - 每个插件的检索调用加 8 秒兜底，挂死的插件不再拖住整个弹窗。
 2. `src/renderer/components/MusicList/index.tsx`
    - 打开弹窗时不再传 `sheetType`（`showMusicContextMenu` 的 `sheetType` 参数本身保留，
      别的菜单项还要用）。
+3. `src/renderer/core/music-full-version/index.ts` + `pure.ts`
+   - 「找出所有含这首歌的歌单」抽成纯函数 `pickSheetIdsWithSong`，
+     `replaceInSheets` 用它，并且每个歌单单独兜底，
+     一个歌单写失败不影响其它歌单。
 
 `replaceInSheets` 本身不用改：它遍历 `getAllSheets()`，而歌单对象是从 Dexie 的
 `sheets` 表整份读出来的，带着 `musicList`，「我喜欢的」也在其中。
@@ -87,7 +111,10 @@ MusicDetail 是盖在所有页面上的全屏覆盖层，拿它底下的歌单�
 
 ## 验证
 
-- `npx tsc --noEmit` 通过；`npm test` 全绿；`eslint ./src` 0 error。
-- 便携版重新打包部署后实测：歌词播放界面点「搜索歌曲」→ 选中一个完整版 →
+- `npx tsc --noEmit` 通过；`npm test` 53/53 通过；`eslint ./src` 0 error。
+- 逐插件实测（CDP 直接调 `getMusicAlternatives`）：确认 QQ 音乐插件不返回、
+  其余两个正常，用以复现「弹窗永远转圈」。
+- 便携版重新打包部署后实测：歌词播放界面点「搜索歌曲」→ 8 秒后候选正常出现
+  （挂死的 QQ 音乐插件被超时隔离）→ 选中一个完整版 →
   歌单里对应那条的时长/来源随即更新，队列里当前项同步换掉并从头播；
   再次从歌单右键选中另一版本，同样覆盖所有含该歌的歌单。
