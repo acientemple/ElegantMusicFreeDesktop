@@ -10,8 +10,8 @@ fork 自上游 `maotoumao/MusicFreeDesktop` v0.0.8，`origin` 指向 `acientempl
 播放队列定位到歌单、窗口置顶、窗口自由缩放、音乐可视化、歌单导入导出等本地定制功能。
 
 - **改代码在这个仓库**，但**运行时不在**：用户实际在用的便携版是
-  `D:\work\OneDrive\Desktop\projects\MusicFree`（含 `portable/userData` 用户数据）。
-  两者之间靠 `npm run package` + `robocopy` 同步，见下面「发布」。
+  `release/portable`（含 `portable/userData` 用户数据）。
+  两者之间靠 `npm run package` + `npm run deploy:portable` 同步，见下面「发布」。
 - 代码在 `src/`。`release/` 是**入库的发布产物**（版本信息、精简便携版、在线安装器），
   不是构建缓存，见「发布」。
 - 每个本地定制功能在 `docs/superpowers/specs/`（设计）与 `docs/superpowers/plans/`（实施）下
@@ -50,15 +50,25 @@ npm run package          # 打包到 out/MusicFree-win32-x64（整包约 5 分�
 
 ### 发布到便携版
 
-覆盖前先结束正在运行的 `MusicFree.exe`，否则 exe 被占用：
+覆盖前先结束正在运行的 `MusicFree.exe`，否则 exe 被占用；
+**从 `out/` 启动的实例更要先关掉** —— electron-forge 打包时要 `rmdir out\MusicFree-win32-x64`，
+被占用会直接报 `EBUSY` 打包失败：
 
 ```bash
 npx tsc --noEmit
 npm run package
-robocopy out\MusicFree-win32-x64 "D:\work\OneDrive\Desktop\projects\MusicFree" /E /R:1 /W:1 /NFL /NDL
+npm run deploy:portable            # 部署到 release/portable
 ```
 
-**robocopy 绝不能加 `/MIR`** —— 会删掉 `portable/` 里的用户数据（插件、设置、歌单数据库）。
+`npm run deploy:portable`（`scripts/deploy-portable.js`）会 robocopy 覆盖 + 清掉多余语言包，
+也可以传目标目录：`node scripts/deploy-portable.js "D:\path\to\MusicFree"`。
+
+两个不能省的约束：
+
+- **robocopy 绝不能加 `/MIR`** —— 会删掉 `portable/` 里的用户数据（插件、设置、歌单数据库）。
+- **要清掉多余语言包**：electron 发行版自带 55 个 `.pak`，入库的便携版只留
+  `en-GB / en-US / zh-CN / zh-TW` 四个，否则 git status 会一直挂着几十个未跟踪文件。
+  部署脚本已经代劳。
 
 ### 发版（GitHub Actions 自动）
 

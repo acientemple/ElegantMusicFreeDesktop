@@ -9,7 +9,7 @@ MusicFree Desktop —— Electron + React 18 + TypeScript 的插件化音乐播�
 音乐可视化、歌单导入导出等定制功能。
 
 > 源码在 `src/`，但**运行时不在仓库里**：用户实际使用便携版
-> `D:\work\OneDrive\Desktop\projects\MusicFree`（含 `portable/userData` 用户数据）。
+> `release/portable`（含 `portable/userData` 用户数据）。
 > 改完代码必须走「部署到便携版」才能生效。
 
 ## Setup commands
@@ -23,15 +23,19 @@ MusicFree Desktop —— Electron + React 18 + TypeScript 的插件化音乐播�
 
 ## 部署到便携版
 
-覆盖前先结束正在运行的 `MusicFree.exe`，否则 exe 被占用会导致失败：
+覆盖前先结束正在运行的 `MusicFree.exe`，否则 exe 被占用会导致失败；
+**从 `out/` 启动的实例必须先关掉** —— 打包要 `rmdir out\MusicFree-win32-x64`，被占用直接报 `EBUSY`：
 
 ```bash
 npx tsc --noEmit
 npm run package
-robocopy out\MusicFree-win32-x64 "D:\work\OneDrive\Desktop\projects\MusicFree" /E /R:1 /W:1 /NFL /NDL
+npm run deploy:portable            # 部署到 release/portable，可传目标目录作参数
 ```
 
+`npm run deploy:portable`（`scripts/deploy-portable.js`）= robocopy 覆盖 + 清掉多余语言包。
+
 **robocopy 绝不能加 `/MIR`** —— 会删掉 `portable/` 里的用户数据（插件、设置、歌单数据库）。
+另外 electron 发行版自带 55 个语言包，入库的便携版只留 `en-GB / en-US / zh-CN / zh-TW` 四个。
 
 ## Project layout
 
@@ -43,7 +47,7 @@ robocopy out\MusicFree-win32-x64 "D:\work\OneDrive\Desktop\projects\MusicFree" /
 - `src/webworkers/` — downloader / local_file_watcher worker（`db` worker 是孤儿 entry，零引用）
 - `src/common/` `src/types/` `src/hooks/` — 公共工具、类型声明、React hooks
 - `config/` — webpack 配置（main / renderer / plugins / rules）
-- `scripts/` — 构建与上传脚本（`verify-visualization-capture.js`、`feishu-upload.js`）
+- `scripts/` — 构建与上传脚本（`verify-visualization-capture.js`、`deploy-portable.js`、`feishu-upload.js`）
 - `res/lang/` — i18n 资源：`zh-CN.json` / `en-US.json` / `zh-TW.json`
 - `plugins/` `themepacks/` — 插件与主题包的**仓库副本**，运行时用便携版 `portable/userData/` 下的，改动要两边同步
 - `release/` — **入库的发布产物**（版本信息、精简便携版、在线安装器），不是构建缓存
