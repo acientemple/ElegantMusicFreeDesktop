@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
     isFullVersionCandidate,
     isPreviewDuration,
+    isPreviewItem,
     isSameSong,
     pickFullVersion,
     pickSheetIdsWithSong,
@@ -172,4 +173,26 @@ test("没有歌单、没有原曲时都不出错", () => {
         pickSheetIdsWithSong([{ id: "x", musicList: [] }], null),
         [],
     );
+});
+
+test("声明时长短就是片段", () => {
+    assert.equal(isPreviewItem(30), true);
+    assert.equal(isPreviewItem(PREVIEW_MAX_DURATION), true);
+    assert.equal(isPreviewItem(275), false);
+    assert.equal(isPreviewItem(undefined), false);
+    assert.equal(isPreviewItem(null), false);
+});
+
+test("声明的是完整时长、实际只有几十秒，也是片段", () => {
+    // 最常见的试听片段：条目上写着 4:35，实际音频只有 30 秒
+    assert.equal(isPreviewItem(275, 30), true);
+    assert.equal(isPreviewItem(275, 45), true);
+    assert.equal(isPreviewItem(275, 60), true);
+    // 实测不短就不是片段
+    assert.equal(isPreviewItem(275, 61), false);
+    assert.equal(isPreviewItem(275, 275), false);
+    // 声明短、实测未知，也算片段
+    assert.equal(isPreviewItem(30, undefined), true);
+    // 两个都不知道，判断不了，不判定
+    assert.equal(isPreviewItem(undefined, undefined), false);
 });

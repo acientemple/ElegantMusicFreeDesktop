@@ -13,15 +13,17 @@
 import { getMediaPrimaryKey } from "@/common/media-util";
 import { delay } from "@/common/time-util";
 import MusicSheet from "@renderer/core/music-sheet";
+import { getVerifiedDuration } from "@renderer/core/music-duration";
 import PluginManager from "@shared/plugin-manager/renderer";
 import {
     isPreviewDuration,
+    isPreviewItem,
     pickFullVersion,
     pickSheetIdsWithSong,
     PREVIEW_MAX_DURATION,
 } from "./pure.ts";
 
-export { PREVIEW_MAX_DURATION, pickFullVersion };
+export { PREVIEW_MAX_DURATION, pickFullVersion, isPreviewDuration };
 
 /** 检索完整版的整体超时（毫秒）。超时后照常播放原来的条目，只是慢一点 */
 const SEARCH_TIMEOUT = 8000;
@@ -33,27 +35,77 @@ const replacementCache = new Map<string, IMusic.IMusicItem>();
 const searchedKeys = new Set<string>();
 
 /**
+ * 实测确认过是试听片段的条目。
+ *
+ * 主流平台给的条目上写着完整歌曲的时长（4:35），实际音频却只有 30 秒，
+ * 光看声明时长是发现不了的，得等播出来量了才知道。记下来之后，
+ * 下次播这一首时播放前就能判定，不用再听完那 30 秒。
+ */
+const previewClipKeys = new Set<string>();
+
+/**
+ * 被自动换进去过的条目。
+ *
+ * 插件给的「完整版」候选质量参差，可能本身还是片段。
+ * 这些条目再被判定成片段时不再自动换，否则会 A → B → A 无限来回换。
+ * 手动在弹窗里选的版本不经过这条链路，不受影响。
+ */
+const autoReplacedTargets = new Set<string>();
+
+/** 记下这个条目实测只有几十秒，是试听片段 */
+export function markPreviewClip(musicItem: IMusic.IMusicItem) {
+    previewClipKeys.add(getMediaPrimaryKey(musicItem));
+}
+
+/** 记下这个条目已经被自动换成完整版了，别再自动换它 */
+export function markAutoReplaced(musicItem: IMusic.IMusicItem) {
+    autoReplacedTargets.add(getMediaPrimaryKey(musicItem));
+}
+
+/**
  * 这个条目是不是短到只可能是试听片段。
- * 时长未知一律返回 false —— 不知道长短就不该触发检索。
+ *
+ * 三个来源任一命中即算：
+ * - 插件声明的时长短
+ * - 实测出来的音频长度短（声明 4:35、实际 30 秒）
+ * - 之前实测确认过是片段
+ *
+ * 时长完全不知道时返回 false —— 不知道长短就不该触发检索。
  */
 export function isPreviewClip(
     musicItem?: IMusic.IMusicItem | null,
+    measuredDuration?: number | null,
 ): boolean {
     if (!musicItem) {
         return false;
     }
-    return isPreviewDuration(musicItem.duration);
+    if (previewClipKeys.has(getMediaPrimaryKey(musicItem))) {
+        return true;
+    }
+    return isPreviewItem(
+        musicItem.duration,
+        measuredDuration ?? getVerifiedDuration(musicItem),
+    );
 }
 
 /**
  * 找出这首歌的完整版。
  *
+ * @param measuredDuration 已测到的音频长度（秒），有的话一并作为判定依据
  * @returns 找到就返回完整版条目；找不到、没插件支持、超时都返回 null
  */
 export async function findFullVersion(
     musicItem: IMusic.IMusicItem,
+    measuredDuration?: number | null,
 ): Promise<IMusic.IMusicItem | null> {
-    if (!musicItem || !isPreviewClip(musicItem)) {
+    if (!musicItem) {
+        return null;
+    }
+    // 已经自动换过一次了，别再来回换
+    if (autoReplacedTargets.has(getMediaPrimaryKey(musicItem))) {
+        return null;
+    }
+    if (!isPreviewClip(musicItem, measuredDuration)) {
         return null;
     }
     const key = getMediaPrimaryKey(musicItem);
@@ -145,4 +197,6 @@ export async function replaceInSheets(
 export function clearFullVersionCache() {
     replacementCache.clear();
     searchedKeys.clear();
+    previewClipKeys.clear();
+    autoReplacedTargets.clear();
 }

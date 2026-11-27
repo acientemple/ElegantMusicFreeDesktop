@@ -42,6 +42,9 @@ import PluginManager from "@shared/plugin-manager/renderer";
 import { correctDurationByMeasured } from "@renderer/core/music-duration";
 import {
     findFullVersion,
+    isPreviewDuration,
+    markAutoReplaced,
+    markPreviewClip,
     replaceInSheets,
 } from "@renderer/core/music-full-version";
 import { i18n } from "@/shared/i18n/renderer";
@@ -382,6 +385,9 @@ class TrackPlayer {
         // 试听片段（一般一分钟以内）先找完整版，找到就换掉再播
         const fullVersion = await findFullVersion(nextMusicItem);
         if (fullVersion) {
+            // 先标记：replaceMusic 内部会回到 playIndex，
+            // 那时新条目已经进了队列，不先标记会被判定成片段再来一遍
+            markAutoReplaced(fullVersion);
             await this.replaceMusic(nextMusicItem, fullVersion, {
                 play: true,
                 restartFromStart: true,
@@ -1088,6 +1094,48 @@ class TrackPlayer {
             return;
         }
         correctDurationByMeasured(musicItem, duration).catch(console.error);
+        // 实测只有几十秒：多半是试听片段，换完整版接着播
+        this.checkPreviewClip(musicItem, duration);
+    }
+
+    /**
+     * 实测时长只有几十秒，说明拿到的是试听片段。
+     *
+     * 主流平台的条目上写着完整歌曲的时长（4:35），实际给的却是 30 秒试听，
+     * 光看声明时长发现不了，得等播出来量了才知道。量到片段就找完整版换掉，
+     * 从头接着播。
+     */
+    private async checkPreviewClip(
+        musicItem: IMusic.IMusicItem,
+        measuredDuration: number,
+    ) {
+        if (!isPreviewDuration(measuredDuration)) {
+            return;
+        }
+        try {
+            // 记下来：下次播这一首，播放前就能判定
+            markPreviewClip(musicItem);
+            const fullVersion = await findFullVersion(musicItem, measuredDuration);
+            if (!fullVersion) {
+                return;
+            }
+            // 检索要几秒，这期间用户可能已经切歌了
+            if (!this.isCurrentMusic(musicItem)) {
+                return;
+            }
+            // 先标记再替换：replaceMusic 内部会回到 playIndex，
+            // 那时新条目已经进了队列，不先标记会被判定成片段再来一遍
+            markAutoReplaced(fullVersion);
+            await this.replaceMusic(musicItem, fullVersion, {
+                play: true,
+                restartFromStart: true,
+            });
+            // 本地歌单里的同一首也换掉，下次从歌单播不用重新检索
+            replaceInSheets(musicItem, fullVersion);
+            toast.success(i18n.t("playback.full_version_replaced"));
+        } catch (e) {
+            console.log(e);
+        }
     }
 
     private setTrack(mediaSource: IPlugin.IMediaSourceResult, musicItem: IMusic.IMusicItem, options: ITrackOptions = {

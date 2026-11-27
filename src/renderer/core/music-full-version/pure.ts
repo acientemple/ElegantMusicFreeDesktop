@@ -81,6 +81,25 @@ export function pickSheetIdsWithSong(
 }
 
 /**
+ * 这个条目是不是短到只可能是试听片段。
+ *
+ * 两个来源都算：
+ * - 插件声明的时长（条目上直接写着 30 秒）
+ * - 实际播出来的音频长度（声明 4:35、实际只有 30 秒 —— 最常见的试听片段）
+ *
+ * 实测优先：只要实际长度短就是片段，不管声明写得多长。
+ */
+export function isPreviewItem(
+    declaredDuration?: number | null,
+    measuredDuration?: number | null,
+): boolean {
+    return (
+        isPreviewDuration(declaredDuration) ||
+        isPreviewDuration(measuredDuration)
+    );
+}
+
+/**
  * 候选够不够格算完整版：
  * - 不能是它自己
  * - 必须有时长，否则判断不了
