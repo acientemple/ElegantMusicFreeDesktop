@@ -199,7 +199,17 @@ i18n → 快捷键 → 拖放处理 → 设备变化 → 本地音乐 → 下载
 `src/common/constant.ts`（`shortCutKeys` + `shortCutKeysCommands`）、`src/shared/message-bus/type.d.ts`
 （`ICommand`）、`src/renderer/document/bootstrap.ts`（`onCommand` 处理）、
 `src/shared/app-config/default-app-config.ts`（默认键位，可不加）。
-默认已绑定方向键：Left / Right 快退 / 快进 5 秒，Up / Down 上一首 / 下一首。
+另外 `res/lang/{zh-CN,en-US,zh-TW}.json` 的 `settings.short_cut.<key>` 也要补 —— 设置页按
+`shortCutKeys.map(...)` + `t(\`settings.short_cut.${it}\`)` 自动渲染，命令表加了新项就会去找对应文案。
+
+共 22 条命令。默认键位（`default-app-config.ts`）：`Space` 播放/暂停、`Left`/`Right` 快退/快进 5 秒、
+`Ctrl+Left`/`Ctrl+Right` 快退/快进 30 秒、`Up`/`Down` 上一首/下一首、`Ctrl+Up`/`Ctrl+Down` 音量、
+`M` 静音、`R` 循环模式、`L` 喜欢、`Ctrl+D` 歌曲详情、`Ctrl+F` 搜完整版、`Ctrl+M` 搜 MV、`Ctrl+L` 搜歌词。
+播放队列 / 迷你模式 / 智能歌词 / 听歌识曲**不预置默认键**，全局快捷键一律不预置。
+
+**默认键位对老用户也生效**：`loadConfig` 是浅合并，`shortCut.shortcuts` 整个对象被用户配置覆盖，
+所以 `ShortCut.setup()` 会对「用户配置里没出现过的键」回退到默认配置（出现过的键以用户配置为准，
+显式清空的 `null` 保持清空）。补上的默认键位会一次性写回用户配置，设置页才能显示出来。
 
 ### 插件系统
 

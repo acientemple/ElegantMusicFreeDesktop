@@ -63,11 +63,23 @@ interface _IAppConfig {
             | "skip-next"
             | "seek-backward"
             | "seek-forward"
+            | "seek-backward-long"
+            | "seek-forward-long"
             | "toggle-desktop-lyric"
             | "volume-up"
             | "volume-down"
+            | "toggle-mute"
+            | "toggle-repeat-mode"
             | "like/dislike"
-            | "toggle-main-window-visible",
+            | "toggle-main-window-visible"
+            | "toggle-music-detail"
+            | "toggle-play-list"
+            | "toggle-minimode"
+            | "search-full-version"
+            | "search-mv"
+            | "search-lyric"
+            | "smart-lyric"
+            | "audio-recognition",
             {
                 local?: string[] | null;
                 global?: string[] | null;

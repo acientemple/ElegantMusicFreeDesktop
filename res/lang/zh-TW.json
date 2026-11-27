@@ -457,7 +457,19 @@
       "toggle-desktop-lyric": "開啟/關閉桌面歌詞",
       "like/dislike": "喜歡/不喜歡當前歌曲",
       "no_short_cut": "無",
-      "toggle-main-window-visible": "顯示/隱藏主窗口"
+      "toggle-main-window-visible": "顯示/隱藏主窗口",
+      "seek-backward-long": "快退 30 秒",
+      "seek-forward-long": "快進 30 秒",
+      "toggle-mute": "靜音/取消靜音",
+      "toggle-repeat-mode": "切換播放模式（順序/單曲/隨機）",
+      "toggle-music-detail": "顯示/隱藏歌曲詳情",
+      "toggle-play-list": "顯示/隱藏播放佇列",
+      "toggle-minimode": "開啟/關閉迷你模式",
+      "search-full-version": "搜尋完整播放版本",
+      "search-mv": "搜尋 MV",
+      "search-lyric": "搜尋歌詞",
+      "smart-lyric": "智能匹配歌詞",
+      "audio-recognition": "聽歌識曲"
     },
     "network": {
       "host": "主機",

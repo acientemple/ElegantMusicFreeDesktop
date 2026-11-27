@@ -17,6 +17,9 @@ import messageBus from "@shared/message-bus/renderer/main";
 import throttle from "lodash.throttle";
 import { IAppState } from "@shared/message-bus/type";
 import MusicDetail from "@renderer/components/MusicDetail";
+import { musicDetailShownStore } from "@renderer/components/MusicDetail/store";
+import { showModal } from "@renderer/components/Modal";
+import { getCurrentPanel, hidePanel, showPanel } from "@renderer/components/Panel";
 import shortCut from "@shared/short-cut/renderer";
 import { setupMusicMeta } from "@renderer/core/music-meta";
 import { setupMusicMv } from "@renderer/core/music-mv";
@@ -26,6 +29,13 @@ import { readThemeColors } from "@renderer/core/visualization/theme-colors";
 
 
 setAutoFreeze(false);
+
+/**
+ * 静音前的音量。
+ * 静音不是「把音量永久设为 0」，取消静音时要还原到静音前的音量，
+ * 所以这里记住一份。null 表示当前没有处于静音状态。
+ */
+let mutedVolume: number | null = null;
 
 export default async function () {
     await Promise.all([
@@ -176,6 +186,22 @@ function setupCommandAndEvents() {
     messageBus.onCommand("SeekBackward", () => {
         seekBy(-5);
     });
+    messageBus.onCommand("SeekForwardLong", () => {
+        seekBy(30);
+    });
+    messageBus.onCommand("SeekBackwardLong", () => {
+        seekBy(-30);
+    });
+    messageBus.onCommand("ToggleMute", () => {
+        // 静音不是「音量永远为 0」：记住静音前的音量，取消时还原回去
+        if (mutedVolume !== null) {
+            trackPlayer.setVolume(mutedVolume);
+            mutedVolume = null;
+        } else {
+            mutedVolume = trackPlayer.volume;
+            trackPlayer.setVolume(0);
+        }
+    });
     messageBus.onCommand("TogglePlayerState", () => {
         if (trackPlayer.playerState === PlayerState.Playing) {
             trackPlayer.pause();
@@ -186,6 +212,72 @@ function setupCommandAndEvents() {
     messageBus.onCommand("SetRepeatMode", (mode) => {
         trackPlayer.setRepeatMode(mode);
     });
+    messageBus.onCommand("ToggleRepeatMode", () => {
+        trackPlayer.toggleRepeatMode();
+    });
+    messageBus.onCommand("ToggleMusicDetail", () => {
+        if (musicDetailShownStore.getValue()) {
+            MusicDetail.hide();
+        } else {
+            MusicDetail.show();
+        }
+    });
+    messageBus.onCommand("TogglePlayList", () => {
+        if (getCurrentPanel()?.type === "PlayList") {
+            hidePanel();
+        } else {
+            showPanel("PlayList", {
+                coverHeader: musicDetailShownStore.getValue(),
+            });
+        }
+    });
+    messageBus.onCommand("ToggleMinimode", () => {
+        const isMiniMode = !!AppConfig.getConfig("private.minimode");
+        appWindowUtil.setMinimodeWindow(!isMiniMode);
+        if (!isMiniMode) {
+            appWindowUtil.minMainWindow(true);
+        }
+    });
+    // 搜索类命令都需要当前播放的歌曲，没有就静默返回
+    const withCurrentMusic = (handler: (musicItem: IMusic.IMusicItem) => void) => {
+        return () => {
+            const musicItem = trackPlayer.currentMusic;
+            if (!musicItem) {
+                return;
+            }
+            handler(musicItem);
+        };
+    };
+    messageBus.onCommand(
+        "SearchFullVersion",
+        withCurrentMusic((musicItem) => {
+            showModal("MusicAlternatives", { musicItem });
+        }),
+    );
+    messageBus.onCommand(
+        "SearchMusicVideo",
+        withCurrentMusic((musicItem) => {
+            showModal("MusicVideoSearch", { musicItem });
+        }),
+    );
+    messageBus.onCommand(
+        "SearchLyric",
+        withCurrentMusic((musicItem) => {
+            showModal("SearchLyric", { musicItem });
+        }),
+    );
+    messageBus.onCommand(
+        "SmartLyric",
+        withCurrentMusic((musicItem) => {
+            showModal("SmartLyric", { musicItem });
+        }),
+    );
+    messageBus.onCommand(
+        "AudioRecognition",
+        withCurrentMusic((musicItem) => {
+            showModal("AudioRecognition", { musicItem });
+        }),
+    );
     messageBus.onCommand("VolumeUp", (val = 0.04) => {
         trackPlayer.setVolume(Math.min(1, trackPlayer.volume + val));
     });

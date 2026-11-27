@@ -25,6 +25,30 @@ export interface ICommand {
   SeekBackward: void;
   /** 快进 5 秒 */
   SeekForward: void;
+  /** 快退 30 秒 */
+  SeekBackwardLong: void;
+  /** 快进 30 秒 */
+  SeekForwardLong: void;
+  /** 切换静音 */
+  ToggleMute: void;
+  /** 切换循环模式（顺序 / 单曲 / 随机） */
+  ToggleRepeatMode: void;
+  /** 显示/隐藏音乐详情面板 */
+  ToggleMusicDetail: void;
+  /** 显示/隐藏播放队列面板 */
+  TogglePlayList: void;
+  /** 切换迷你模式 */
+  ToggleMinimode: void;
+  /** 搜索完整播放版本 */
+  SearchFullVersion: void;
+  /** 搜索 MV */
+  SearchMusicVideo: void;
+  /** 搜索歌词 */
+  SearchLyric: void;
+  /** 智能匹配歌词 */
+  SmartLyric: void;
+  /** 听歌识曲 */
+  AudioRecognition: void;
   /** 设置循环模式 */
   SetRepeatMode: RepeatMode;
   /** 播放音乐 */
