@@ -11,10 +11,10 @@
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "eslint ./src --fix",
-    "lint-staged": "lint-staged",
+    "lint-staged": "lint-staged --config package.json",
     "test": "node --test --no-warnings=MODULE_TYPELESS_PACKAGE_JSON \"src/**/*.test.ts\"",
     "verify:capture": "electron scripts/verify-visualization-capture.js",
-    "prepare": "husky install"
+    "prepare": "husky"
   },
   "keywords": [],
   "author": {
