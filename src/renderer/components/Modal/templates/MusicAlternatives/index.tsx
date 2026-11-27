@@ -13,12 +13,23 @@ import trackPlayer from "@renderer/core/track-player";
 import { replaceInSheets } from "@renderer/core/music-full-version";
 import { hideModal } from "../..";
 import { getMediaPrimaryKey } from "@/common/media-util";
+import { delay } from "@/common/time-util";
 import { applyMusicMeta } from "@/renderer/core/music-meta";
 import SvgAsset from "@/renderer/components/SvgAsset";
 
 interface IProps {
     musicItem?: IMusic.IMusicItem;
 }
+
+/**
+ * 单个插件检索的最长等待时间（毫秒）。
+ *
+ * 插件是自己写的网络请求，有的会一直挂着不返回。弹窗是并发问所有插件的，
+ * 只要有一个不回，整个弹窗就永远转圈 —— 别的插件明明已经搜到结果了，
+ * 用户却什么都看不到。这里给每个插件单独兜个底：超时就当它没搜到，
+ * 不影响其它插件的结果。
+ */
+const PLUGIN_TIMEOUT = 8000;
 
 function formatDuration(duration?: number | null) {
     if (!duration || !isFinite(duration)) {
@@ -114,15 +125,20 @@ export default function MusicAlternatives(props: IProps) {
                 return;
             }
             const settled = await Promise.allSettled(
-                supports.map((plugin) =>
-                    PluginManager.callPluginDelegateMethod(
+                supports.map(async (plugin) => {
+                    const request = PluginManager.callPluginDelegateMethod(
                         { platform: plugin.platform, hash: plugin.hash },
                         "getMusicAlternatives",
                         target,
                         1,
                         submittedKeyword?.trim() || undefined,
-                    ),
-                ),
+                    );
+                    // 插件挂住时按时返回空结果，别把整个弹窗拖死
+                    const timeout = delay(PLUGIN_TIMEOUT).then(() => null);
+                    return (await Promise.race([request, timeout])) ?? {
+                        data: [],
+                    };
+                }),
             );
             const merged: IMusic.IMusicItem[] = [];
             for (const result of settled) {
