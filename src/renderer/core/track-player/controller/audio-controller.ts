@@ -116,6 +116,20 @@ class AudioController extends ControllerBase implements IAudioController {
             });
         };
 
+        /**
+         * 时长变了就报一次。
+         *
+         * HLS 音源的时长要等缓冲得差不多了才从 Infinity 变成真实值，
+         * 只靠 ontimeupdate 会错过那一刻 —— 而那一刻正是判断
+         * 「拿到的到底是不是 30 秒试听片段」的关键。
+         */
+        this.audio.ondurationchange = () => {
+            this.onProgressUpdate?.({
+                currentTime: this.audio.currentTime,
+                duration: this.audio.duration,
+            });
+        };
+
         // this.audio.onseeking = () => {
         //     this.playerState = PlayerState.Buffering;
         // }
@@ -133,6 +147,15 @@ class AudioController extends ControllerBase implements IAudioController {
         this.audio.onloadedmetadata = () => {
             this.applyPendingSeek();
             this.checkLocalSourceComplete();
+            /**
+             * 元数据一到货就知道音频的真实长度了。
+             * 试听片段的判定靠的就是这个长度 —— 只等 ontimeupdate 的话
+             * 要等播放起来才量得到，开播瞬间其实已经量到了。
+             */
+            this.onProgressUpdate?.({
+                currentTime: this.audio.currentTime,
+                duration: this.audio.duration,
+            });
         };
 
         this.audio.onvolumechange = () => {

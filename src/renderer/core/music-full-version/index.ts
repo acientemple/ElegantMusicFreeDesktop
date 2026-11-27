@@ -12,10 +12,13 @@
 
 import { getMediaPrimaryKey } from "@/common/media-util";
 import { normalizeDuration } from "@/common/duration-util";
-import { delay } from "@/common/time-util";
 import MusicSheet from "@renderer/core/music-sheet";
 import { getVerifiedDuration } from "@renderer/core/music-duration";
 import PluginManager from "@shared/plugin-manager/renderer";
+import {
+    isSearchConclusive,
+    searchWithPerPluginTimeout,
+} from "./search.ts";
 import {
     isPreviewDuration,
     isPreviewItem,
@@ -24,10 +27,17 @@ import {
     PREVIEW_MAX_DURATION,
 } from "./pure.ts";
 
-export { PREVIEW_MAX_DURATION, pickFullVersion, isPreviewDuration };
+export { PREVIEW_MAX_DURATION, pickFullVersion, isPreviewDuration, isPreviewItem };
 
-/** 检索完整版的整体超时（毫秒）。超时后照常播放原来的条目，只是慢一点 */
-const SEARCH_TIMEOUT = 8000;
+/**
+ * 单个插件检索的最长等待时间（毫秒）。
+ *
+ * 插件是自己写的网络请求，有的会一直挂着不返回，有的十几秒才回。
+ * 这是**每个插件各自**的额度，不是所有插件的总额 ——
+ * 早先算的是总额，结果慢插件一拖，其它插件已经搜到的结果全被丢掉，
+ * 自动换完整版就时灵时不灵。手动「搜索完整播放版本」弹窗也是这个额度。
+ */
+export const PLUGIN_SEARCH_TIMEOUT = 8000;
 
 /** 已经找到完整版的条目：原条目主键 -> 完整版 */
 const replacementCache = new Map<string, IMusic.IMusicItem>();
@@ -69,6 +79,7 @@ export function markAutoReplaced(musicItem: IMusic.IMusicItem) {
  * 三个来源任一命中即算：
  * - 插件声明的时长短
  * - 实测出来的音频长度短（声明 4:35、实际 30 秒）
+ * - 声明的是长歌、实测只播出来一小截（声明 4:31、实际 68 秒）
  * - 之前实测确认过是片段
  *
  * 时长完全不知道时返回 false —— 不知道长短就不该触发检索。
@@ -125,7 +136,7 @@ export async function findFullVersion(
         return null;
     }
 
-    const requests = plugins.map((plugin) =>
+    const requests = plugins.map((plugin) => () =>
         PluginManager.callPluginDelegateMethod(
             { platform: plugin.platform, hash: plugin.hash },
             "getMusicAlternatives",
@@ -134,30 +145,22 @@ export async function findFullVersion(
         ),
     );
 
-    const settled = await Promise.race([
-        Promise.allSettled(requests),
-        delay(SEARCH_TIMEOUT).then(() => null),
-    ]);
-
-    if (!settled) {
-        // 超时：这次不算数，下次播放还会再试
-        return null;
-    }
-
+    // 每个插件单独兜底：慢插件按「没搜到」处理，不拖累其它插件的结果
+    const results = await searchWithPerPluginTimeout<IMusic.IMusicItem>(
+        requests,
+        PLUGIN_SEARCH_TIMEOUT,
+    );
     const merged: IMusic.IMusicItem[] = [];
-    let responded = false;
-    for (const result of settled) {
-        if (result.status === "fulfilled") {
-            responded = true;
-            if (result.value?.data) {
-                merged.push(...result.value.data);
-            }
-        }
+    for (const result of results) {
+        merged.push(...result.data);
     }
 
-    // 查完了：确认没有完整版的记下来，别每次播放都再问一遍插件。
-    // 插件直接报错不算数，那多半是网络问题，下次播放还会再试。
-    if (responded) {
+    /**
+     * 查完了才记「已查过、没有完整版」。
+     * 有插件超时、或所有插件都报错，说明这次检索并不完整 ——
+     * 这时候不记，下次播放还会再试，不会因为一次运气不好就把这首歌拉黑。
+     */
+    if (isSearchConclusive(results)) {
         searchedKeys.add(key);
     }
 
@@ -171,6 +174,21 @@ export async function findFullVersion(
         replacementCache.set(key, picked);
     }
     return picked;
+}
+
+/**
+ * 取已经找到过的完整版（缓存命中，不用再等网络）。
+ *
+ * 播放前用它决定要不要先换成完整版再播：
+ * 命中就立即换，不命中就别挡着播放 —— 检索要几秒，挡住播放体验太差。
+ */
+export function getCachedFullVersion(
+    musicItem: IMusic.IMusicItem | null | undefined,
+): IMusic.IMusicItem | null {
+    if (!musicItem) {
+        return null;
+    }
+    return replacementCache.get(getMediaPrimaryKey(musicItem)) ?? null;
 }
 
 /**

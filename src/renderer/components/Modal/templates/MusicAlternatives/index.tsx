@@ -10,7 +10,10 @@ import albumImg from "@/assets/imgs/album-cover.jpg";
 import { setFallbackAlbum } from "@/renderer/utils/img-on-error";
 import PluginManager, { useSupportedPlugin } from "@shared/plugin-manager/renderer";
 import trackPlayer from "@renderer/core/track-player";
-import { replaceInSheets } from "@renderer/core/music-full-version";
+import {
+    replaceInSheets,
+    PLUGIN_SEARCH_TIMEOUT,
+} from "@renderer/core/music-full-version";
 import { hideModal } from "../..";
 import { getMediaPrimaryKey } from "@/common/media-util";
 import { delay } from "@/common/time-util";
@@ -28,8 +31,10 @@ interface IProps {
  * 只要有一个不回，整个弹窗就永远转圈 —— 别的插件明明已经搜到结果了，
  * 用户却什么都看不到。这里给每个插件单独兜个底：超时就当它没搜到，
  * 不影响其它插件的结果。
+ *
+ * 与自动换完整版用的是同一个额度（见 music-full-version）。
  */
-const PLUGIN_TIMEOUT = 8000;
+const PLUGIN_TIMEOUT = PLUGIN_SEARCH_TIMEOUT;
 
 function formatDuration(duration?: number | null) {
     if (!duration || !isFinite(duration)) {

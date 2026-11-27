@@ -10,6 +10,23 @@ import { normalizeDuration } from "../../../common/duration-util.ts";
 /** 试听片段的时长上限（秒）。插件给的试听链接一般只有 30~60 秒 */
 export const PREVIEW_MAX_DURATION = 60;
 
+/**
+ * 比例判据：实测时长不超过声明时长的这个比例，算「长歌被截短」。
+ *
+ * 有些试听片段不止 30 秒（比如 68 秒），只看绝对秒数会漏掉。
+ */
+export const PREVIEW_RATIO = 0.6;
+
+/**
+ * 比例判据的门槛：声明时长到这个值以上才可能是「长歌被截短」。
+ *
+ * 短歌（儿歌、影视片段）本来就短，声明多少就是多少，不该被当成片段。
+ */
+export const MIN_LONG_DURATION = 120;
+
+/** 实测与声明的差在这个范围内算「一致」，说明歌曲本来就短，不是被截断的 */
+export const DURATION_MATCH_TOLERANCE = 2;
+
 /** 完整版至少要比原曲长这么多秒，才算「明显是完整版」 */
 export const MIN_EXTRA_SECONDS = 60;
 
@@ -83,20 +100,46 @@ export function pickSheetIdsWithSong(
 /**
  * 这个条目是不是短到只可能是试听片段。
  *
- * 两个来源都算：
+ * 三条判据：
  * - 插件声明的时长（条目上直接写着 30 秒）
  * - 实际播出来的音频长度（声明 4:35、实际只有 30 秒 —— 最常见的试听片段）
+ * - 声明的是长歌、实际只播出来一小截（声明 4:31、实际 68 秒）
  *
- * 实测优先：只要实际长度短就是片段，不管声明写得多长。
+ * 反过来，实测与声明一致说明歌曲本来就短，是整首，不算片段。
  */
 export function isPreviewItem(
     declaredDuration?: number | null,
     measuredDuration?: number | null,
 ): boolean {
-    return (
-        isPreviewDuration(declaredDuration) ||
-        isPreviewDuration(measuredDuration)
-    );
+    const declared = normalizeDuration(declaredDuration);
+    const measured = normalizeDuration(measuredDuration);
+
+    // 实测与声明一致 → 歌曲本来就短，是整首，不是被截断的
+    if (
+        declared !== undefined &&
+        measured !== undefined &&
+        Math.abs(measured - declared) <= DURATION_MATCH_TOLERANCE
+    ) {
+        return false;
+    }
+    // 声明的时长本身就短到只可能是片段
+    if (isPreviewDuration(declaredDuration)) {
+        return true;
+    }
+    // 实测只有几十秒
+    if (isPreviewDuration(measuredDuration)) {
+        return true;
+    }
+    // 长歌被截短：声明好几分钟，实际只播出来一小截
+    if (
+        declared !== undefined &&
+        measured !== undefined &&
+        declared >= MIN_LONG_DURATION &&
+        measured <= declared * PREVIEW_RATIO
+    ) {
+        return true;
+    }
+    return false;
 }
 
 /**
@@ -136,7 +179,14 @@ export function isFullVersionCandidate(
 
 /**
  * 从候选里挑一个最好的完整版。
- * 原唱优先，其次时长长的优先。
+ *
+ * 排序：
+ * 1. 原唱优先；
+ * 2. 同为原唱时，**时长最接近原曲声明时长**的优先 ——
+ *    原曲声明的时长就是这首歌本身的长度（条目上写的是完整歌曲的时长），
+ *    而 DJ 版、加速版、现场版都会明显偏长。只按「取最长的」挑，
+ *    会把《童年 (DJ Candy版)》这种 6 分半的混音选到《童年》头上。
+ * 3. 时长都差不多时取长的。
  *
  * @param baseDuration 判定基准时长，见 isFullVersionCandidate 的说明
  */
@@ -152,11 +202,28 @@ export function pickFullVersion<T extends IVersionItem>(
         return null;
     }
     valid.sort((a, b) => {
+        // 1. 原唱优先
         const aOrigin = a.isOriginArtist ? 1 : 0;
         const bOrigin = b.isOriginArtist ? 1 : 0;
         if (aOrigin !== bOrigin) {
             return bOrigin - aOrigin;
         }
+        // 2. 时长越接近原曲声明时长越好（DJ 版、混音版会明显偏长）
+        //    只有声明的时长像个正常歌曲长度时才能这么比：
+        //    声明 30 秒的那种是「平台把片段长度写成了歌曲长度」，比不了
+        const declared = normalizeDuration(original?.duration) ?? 0;
+        if (declared >= MIN_FULL_DURATION) {
+            const aDiff = Math.abs(
+                (normalizeDuration(a.duration) ?? 0) - declared,
+            );
+            const bDiff = Math.abs(
+                (normalizeDuration(b.duration) ?? 0) - declared,
+            );
+            if (aDiff !== bDiff) {
+                return aDiff - bDiff;
+            }
+        }
+        // 3. 都差不多就取长的
         return (
             (normalizeDuration(b.duration) ?? 0) -
             (normalizeDuration(a.duration) ?? 0)

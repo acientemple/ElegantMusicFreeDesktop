@@ -132,6 +132,40 @@ test("同样不是原唱时选时长长的", () => {
     assert.equal(picked?.id, "3");
 });
 
+test("原唱里挑时长最接近原曲的，别选 DJ 混音版", () => {
+    // 原曲《童年》声明 3:55（235 秒），实际只播 30 秒
+    const original = { platform: "p", id: "1", duration: 235 };
+    const picked = pickFullVersion(
+        original,
+        [
+            // DJ 版：6 分半，比原曲长一大截
+            {
+                platform: "q",
+                id: "2",
+                duration: 389,
+                isOriginArtist: true,
+            },
+            // 录音室版：时长跟原曲一致
+            { platform: "r", id: "3", duration: 235, isOriginArtist: true },
+        ],
+        30,
+    );
+    assert.equal(picked?.id, "3");
+});
+
+test("原曲声明的时长不像正常歌曲长度时，按时长取长的", () => {
+    // 声明只有 30 秒（平台把片段长度写成了歌曲长度），比不了接近度
+    const picked = pickFullVersion(
+        { platform: "p", id: "1", duration: 30 },
+        [
+            { platform: "q", id: "2", duration: 200, isOriginArtist: true },
+            { platform: "r", id: "3", duration: 320, isOriginArtist: true },
+        ],
+        30,
+    );
+    assert.equal(picked?.id, "3");
+});
+
 test("没有合格的候选就返回 null", () => {
     assert.equal(
         pickFullVersion({ platform: "p", id: "1", duration: 30 }, []),
@@ -188,13 +222,31 @@ test("声明的是完整时长、实际只有几十秒，也是片段", () => {
     assert.equal(isPreviewItem(275, 30), true);
     assert.equal(isPreviewItem(275, 45), true);
     assert.equal(isPreviewItem(275, 60), true);
-    // 实测不短就不是片段
-    assert.equal(isPreviewItem(275, 61), false);
+    // 实测与声明一致 → 整首，不是片段
     assert.equal(isPreviewItem(275, 275), false);
     // 声明短、实测未知，也算片段
     assert.equal(isPreviewItem(30, undefined), true);
     // 两个都不知道，判断不了，不判定
     assert.equal(isPreviewItem(undefined, undefined), false);
+});
+
+test("长歌被截短也算片段，不只看绝对秒数", () => {
+    // 声明 4:31、实际只有 68 秒：超过一分钟，但明显是截断的
+    assert.equal(isPreviewItem(271, 68), true);
+    // 刚好卡在比例边界上
+    assert.equal(isPreviewItem(200, 120), true);
+    assert.equal(isPreviewItem(200, 121), false);
+    // 声明本来就不到两分钟 → 不适用比例判据，差得不多就当整首
+    assert.equal(isPreviewItem(100, 80), false);
+});
+
+test("实测与声明一致就是整首，短歌不会被误判成片段", () => {
+    // 儿歌：声明 45 秒、实测 45 秒，是整首
+    assert.equal(isPreviewItem(45, 45), false);
+    assert.equal(isPreviewItem(45, 44), false);
+    assert.equal(isPreviewItem(45, 46), false);
+    // 声明 45 秒、实测只播了 30 秒 → 被截短了
+    assert.equal(isPreviewItem(45, 30), true);
 });
 
 test("原曲声明完整时长、实测只有几十秒时，真正的完整版要能选出来", () => {

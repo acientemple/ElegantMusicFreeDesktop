@@ -42,7 +42,8 @@ import PluginManager from "@shared/plugin-manager/renderer";
 import { correctDurationByMeasured } from "@renderer/core/music-duration";
 import {
     findFullVersion,
-    isPreviewDuration,
+    getCachedFullVersion,
+    isPreviewItem,
     markAutoReplaced,
     markPreviewClip,
     replaceInSheets,
@@ -382,18 +383,24 @@ class TrackPlayer {
         this.setPlayerState(PlayerState.Buffering);
         this.audioController.prepareTrack?.(nextMusicItem);
 
-        // 试听片段（一般一分钟以内）先找完整版，找到就换掉再播
-        const fullVersion = await findFullVersion(nextMusicItem);
-        if (fullVersion) {
+        /**
+         * 之前已经确认是片段、而且完整版已经找到了：直接换上去播。
+         *
+         * 这里只查缓存，不现检索 —— 检索要几秒，卡在播放前面体验很差
+         * （短歌本来就不长，白等一趟还没结果）。没命中就先唱起来，
+         * 交给「实测时长 → 判定片段 → 检索 → 替换」那条链路处理。
+         */
+        const cachedFullVersion = getCachedFullVersion(nextMusicItem);
+        if (cachedFullVersion) {
             // 先标记：replaceMusic 内部会回到 playIndex，
             // 那时新条目已经进了队列，不先标记会被判定成片段再来一遍
-            markAutoReplaced(fullVersion);
-            await this.replaceMusic(nextMusicItem, fullVersion, {
+            markAutoReplaced(cachedFullVersion);
+            await this.replaceMusic(nextMusicItem, cachedFullVersion, {
                 play: true,
                 restartFromStart: true,
             });
             // 本地歌单里的同一首也换掉，下次从歌单播不用重新检索
-            replaceInSheets(nextMusicItem, fullVersion);
+            replaceInSheets(nextMusicItem, cachedFullVersion);
             toast.success(i18n.t("playback.full_version_replaced"));
             return;
         }
@@ -1099,7 +1106,7 @@ class TrackPlayer {
     }
 
     /**
-     * 实测时长只有几十秒，说明拿到的是试听片段。
+     * 实测时长明显短于声明时长，说明拿到的是试听片段。
      *
      * 主流平台的条目上写着完整歌曲的时长（4:35），实际给的却是 30 秒试听，
      * 光看声明时长发现不了，得等播出来量了才知道。量到片段就找完整版换掉，
@@ -1109,7 +1116,9 @@ class TrackPlayer {
         musicItem: IMusic.IMusicItem,
         measuredDuration: number,
     ) {
-        if (!isPreviewDuration(measuredDuration)) {
+        // 判据跟 isPreviewItem 一致：既看「绝对秒数」，也看「相对声明的比例」，
+        // 后者能捞到 68 秒这类超过一分钟、但明显是长歌截断的片段
+        if (!isPreviewItem(musicItem.duration, measuredDuration)) {
             return;
         }
         try {
