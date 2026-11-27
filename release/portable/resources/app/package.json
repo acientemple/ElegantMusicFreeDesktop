@@ -13,6 +13,7 @@
     "lint": "eslint ./src --fix",
     "lint-staged": "lint-staged --config package.json",
     "test": "node --test --no-warnings=MODULE_TYPELESS_PACKAGE_JSON \"src/**/*.test.ts\"",
+    "deploy:portable": "node scripts/deploy-portable.js",
     "verify:capture": "electron scripts/verify-visualization-capture.js",
     "prepare": "husky"
   },
