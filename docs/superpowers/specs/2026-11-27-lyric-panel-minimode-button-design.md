@@ -1,68 +1,78 @@
-# 歌词面板右上角迷你模式按钮设计
+# 歌词播放界面的迷你模式按钮设计
 
 日期：2026-11-27
 状态：已实现并验证
 
 ## 目标
 
-在**歌词播放界面**（音乐详情面板的歌词区）右上角增加一个**迷你模式**按钮，
-点一下即可切到迷你模式窗口，不必先回到顶部标题栏去找入口。
+在**歌词播放界面**（音乐详情面板）里给出一个**迷你模式**入口，
+点一下即可切到迷你模式窗口，不必回到主窗口顶部标题栏去找。
 
-非目标：不新增设置项；不改迷你模式窗口自身的行为；不动标题栏已有的那个入口。
+非目标：不新增设置项；不改迷你模式窗口自身的行为；不动主窗口标题栏已有的那个入口。
 
 ## 现状（为什么这么做）
 
-- 迷你模式目前只有**顶部标题栏**一个入口：`src/renderer/components/Header/index.tsx` 里
-  `picture-in-picture-line` 图标，点击时 `appWindowUtil.setMinimodeWindow(!isMiniMode)`，
+- 迷你模式原本只有**主窗口顶部标题栏**一个入口：
+  `src/renderer/components/Header/index.tsx` 里的 `picture-in-picture-line` 图标，
+  点击时 `appWindowUtil.setMinimodeWindow(!isMiniMode)`，
   开启时额外 `appWindowUtil.minMainWindow(true)` 把主窗口收起来。
-- 歌词面板右侧已经有一组**浮动操作按钮**的容器 `.lyric-options-container`：
-  绝对定位在面板右外侧 14px（`right: -14px` + `transform: translateX(100%)`），
-  当前挂在面板**右下角**（`bottom: 0`），里面是「翻译」切换按钮。
-- 所以新增入口不需要另起一套定位体系，只要复用这个容器样式，加一个定位到顶部的修饰类。
+- 歌词播放界面（`MusicDetail`）本身有自己的一整块全屏面板，
+  面板顶部有一条 `music-detail--header-container`：
+  左边是收起按钮（`chevron-down`），右边是 `music-detail--header-right`，
+  里面并排放着**最小化（`minus`）/ 最大化（`square`）/ 退出（`x-mark`）**三个窗口控制按钮。
+- 面板把整个主窗口盖住了，顶部标题栏被挡住，
+  所以在**这个面板里**必须再给一个入口，否则用户想开迷你模式得先收起面板。
 
 ## 方案
 
-**采用：在歌词面板里复用既有浮动按钮容器，用 `--top` 修饰类挪到面板右上角，
-点击逻辑与标题栏按钮完全一致。**
+**采用：在 MusicDetail 面板顶部 Header 的 `music-detail--header-right` 里，
+于最小化按钮左侧加一个迷你模式按钮，点击逻辑与主窗口标题栏完全一致。**
 
-备选一是把按钮直接写进歌词面板的 Header 区——歌词面板没有 Header，
-且那里会被歌词滚动内容覆盖；备选二是把迷你模式入口从标题栏删掉只留歌词面板——
-标题栏是全局可达的，删掉等于降级。
+备选一是把按钮放在歌词区（`.lyric-container-outer`）右上角那组浮动操作按钮里——
+那是翻译切换按钮所在的位置（浮动在面板**外侧** 14px 的竖排一组），
+塞进窗口控制区会破坏「面板浮动按钮」这一定位约定，且视觉上不在「右上角」。
+备选二是去掉主窗口标题栏的入口只留面板入口——标题栏是全局可达的，删掉等于降级。
 
 ### 改动
 
-1. `src/renderer/components/MusicDetail/widgets/Lyric/index.tsx`
+1. `src/renderer/components/MusicDetail/widgets/Header/index.tsx`
    - 新增 `const isMiniMode = useAppConfig("private.minimode")`。
-   - 新增 `miniModeComponent`：外层 `<div className="lyric-options-container lyric-options-container--top">`，
-     内层按钮类名沿用 `lyric-option-item`，图标 `picture-in-picture-line`，
-     `title={t("music_detail.minimode")}`，`data-active={isMiniMode}`。
-   - 点击逻辑与 `Header` 保持一字不差：
+   - 在 `music-detail--header-right` 的**最前面**（即最小化按钮左侧）插入按钮：
+     类名沿用 `header-button`，图标 `picture-in-picture-line`，
+     `title={t("app_header.minimode")}`，`data-active={isMiniMode}`。
+   - 点击逻辑与主窗口标题栏一字不差：
      `setMinimodeWindow(!isMiniMode)`，且**仅当开启时**才 `minMainWindow(true)`；
      关闭时不动主窗口，由主进程自己把主窗口带回来。
-   - 该组件渲染在 `.lyric-container-outer` 内、歌词滚动区之外，
-     不参与歌词滚动。
-2. `src/renderer/components/MusicDetail/widgets/Lyric/index.scss`
-   - 新增 `& .lyric-options-container--top { top: 0; bottom: auto; }`。
-     基类只有 `bottom: 0`，不加 `bottom: auto` 会因为 `top`/`bottom` 同时存在而拉伸。
-3. 三语文案 `music_detail.minimode`：zh-CN「迷你模式」/ en-US「Minimode」/ zh-TW「迷你模式」。
+2. `src/renderer/components/MusicDetail/widgets/Header/index.scss`
+   - 新增 `& .header-button[data-active="true"] { color: var(--primaryColor); opacity: 1; }`，
+     让迷你模式开着时按钮点亮（`SvgAsset` 的 svg 用 `fill="currentColor"`，所以 `color` 生效）。
+3. 文案**复用已有的** `app_header.minimode`（zh-CN「迷你模式」/ en-US「Minimode」/ zh-TW「迷你模式」），
+   不新增 key——同一组按钮区里最小化/退出用的都是 `app_header.*`。
 
 ## 取舍与已知限制
 
-- `data-active` 沿用翻译按钮的约定：值为 `"true"` 时图标染成 `--primaryColor`，
-  用来表示迷你模式当前处于开启状态。
-- 按钮在面板**外侧** 14px（沿用基类定位），面板宽度 40vw，右侧还有富余空间，
-  不会与 `.hide-music-detail`（`position: fixed; right: 36px; top: 36px`）冲突。
-- 顶部这组和底部那组是同一个基类的两个实例，两者相距一个面板高度，不会重叠。
+- 按钮放在最小化按钮**左侧**而不是右侧：右侧是「最小化/最大化/退出」窗口控制三连，
+  按 Windows 惯例额外的应用按钮应排在窗口控制组左边，
+  这样最右端仍然是屏幕边缘（`padding-right: 16px`），视觉不歪。
+- `data-active` 沿用既有约定：值为 `"true"` 时染成 `--primaryColor`。
+- 迷你模式开着时，面板仍在主窗口里；主窗口被 `minMainWindow(true)` 收起，
+  迷你模式窗口由主进程单独显示，两者互不影响。
 - 打包版无热重载，改完需重新 `npm run package` 并覆盖便携版。
 
 ## 验证
 
 - `npx tsc --noEmit` 通过；`npm test` 51/51 通过；`eslint ./src` 0 error。
 - 便携版重新打包并覆盖后，通过 CDP 驱动真实页面验证：
-  - DOM 命中 `.lyric-options-container--top .lyric-option-item`，
-    `title="迷你模式"`，图标 18×18；
-  - 几何（1920×1008 视口）：歌词面板 `x=779 w=768`（右边缘 1547），
-    按钮 `x=1561 y=1217`——**按钮左边缘在面板右边缘外 14px，顶边与面板顶边齐平**，
-    即面板右上角；
+  - DOM 命中 `.music-detail--header-right .header-button[title="迷你模式"]`，
+    图标 `picture-in-picture-line`；
+  - 几何：按钮与最小化按钮同处 `music-detail--header-right`，
+    水平相邻（迷你模式按钮在左、最小化按钮在右），垂直居中对齐；
   - 点击行为：点一次迷你模式窗口消失、`private.minimode` 变 `false`、
     按钮 `data-active` 变 `false`；再点一次三者全部复原。
+
+## 变更记录
+
+- **2026-11-27 晚**：初版把按钮放在歌词区右上角的浮动按钮组
+  （`.lyric-options-container--top`，面板外侧 14px）。
+  按用户反馈改为**面板顶部 Header、最小化按钮旁边**，
+  移除了歌词区那组按钮及其 `--top` 样式，歌词区恢复为只有翻译切换按钮。

@@ -4,10 +4,14 @@ import SvgAsset from "@renderer/components/SvgAsset";
 import { useTranslation } from "react-i18next";
 import { appUtil, appWindowUtil } from "@shared/utils/renderer";
 import AppConfig from "@shared/app-config/renderer";
+import useAppConfig from "@/hooks/useAppConfig";
 
 
 export default function Header() {
     const { t } = useTranslation();
+
+    /** 迷你模式是否开着。开着时按钮点亮，跟顶栏那个按钮状态一致 */
+    const isMiniMode = useAppConfig("private.minimode");
 
 
     return <div className='music-detail--header-container' >
@@ -22,6 +26,20 @@ export default function Header() {
             <SvgAsset iconName="chevron-down"></SvgAsset>
         </div>
         <div className='music-detail--header-right'>
+            <div
+                role="button"
+                title={t("app_header.minimode")}
+                className="header-button"
+                data-active={isMiniMode}
+                onClick={() => {
+                    appWindowUtil.setMinimodeWindow(!isMiniMode);
+                    if (!isMiniMode) {
+                        appWindowUtil.minMainWindow(true);
+                    }
+                }}
+            >
+                <SvgAsset iconName="picture-in-picture-line"></SvgAsset>
+            </div>
             <div
                 role="button"
                 title={t("app_header.minimize")}

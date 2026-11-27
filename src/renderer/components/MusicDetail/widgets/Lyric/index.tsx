@@ -17,8 +17,7 @@ import { getMediaPrimaryKey } from "@/common/media-util";
 import { useTranslation } from "react-i18next";
 import { useCurrentMusic, useLyric } from "@renderer/core/track-player/hooks";
 import trackPlayer from "@renderer/core/track-player";
-import { dialogUtil, fsUtil, appWindowUtil } from "@shared/utils/renderer";
-import useAppConfig from "@/hooks/useAppConfig";
+import { dialogUtil, fsUtil } from "@shared/utils/renderer";
 
 export default function Lyric() {
     const lyricContext = useLyric();
@@ -36,9 +35,6 @@ export default function Lyric() {
     const { t } = useTranslation();
 
     const mountRef = useRef(false);
-
-    /** 迷你模式是否开着。开着时按钮点亮，跟顶栏那个按钮状态一致 */
-    const isMiniMode = useAppConfig("private.minimode");
 
     useEffect(() => {
         if (containerRef.current) {
@@ -81,29 +77,8 @@ export default function Lyric() {
         </div>
     );
 
-    /** 右上角：打开迷你模式 */
-    const miniModeComponent = (
-        <div className="lyric-options-container lyric-options-container--top">
-            <div
-                className="lyric-option-item"
-                role="button"
-                title={t("music_detail.minimode")}
-                data-active={isMiniMode}
-                onClick={() => {
-                    appWindowUtil.setMinimodeWindow(!isMiniMode);
-                    if (!isMiniMode) {
-                        appWindowUtil.minMainWindow(true);
-                    }
-                }}
-            >
-                <SvgAsset iconName="picture-in-picture-line"></SvgAsset>
-            </div>
-        </div>
-    );
-
     return (
         <div className="lyric-container-outer">
-            {miniModeComponent}
             <div
                 className="lyric-container"
                 data-loading={lyricContext === null}

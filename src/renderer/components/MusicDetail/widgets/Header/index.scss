@@ -42,6 +42,12 @@
         opacity: 1;
       }
 
+      /* 迷你模式开着时点亮，和顶栏那个按钮一个状态 */
+      &[data-active="true"] {
+        color: var(--primaryColor);
+        opacity: 1;
+      }
+
       & svg {
         width: 20px;
         height: 20px;
