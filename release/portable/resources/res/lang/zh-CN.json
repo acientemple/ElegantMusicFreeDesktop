@@ -457,7 +457,19 @@
       "toggle-desktop-lyric": "打开/关闭桌面歌词",
       "like/dislike": "喜欢/不喜欢当前歌曲",
       "no_short_cut": "空",
-      "toggle-main-window-visible": "显示/隐藏主窗口"
+      "toggle-main-window-visible": "显示/隐藏主窗口",
+      "seek-backward-long": "快退 30 秒",
+      "seek-forward-long": "快进 30 秒",
+      "toggle-mute": "静音/取消静音",
+      "toggle-repeat-mode": "切换播放模式（顺序/单曲/随机）",
+      "toggle-music-detail": "显示/隐藏歌曲详情",
+      "toggle-play-list": "显示/隐藏播放队列",
+      "toggle-minimode": "打开/关闭迷你模式",
+      "search-full-version": "搜索完整播放版本",
+      "search-mv": "搜索 MV",
+      "search-lyric": "搜索歌词",
+      "smart-lyric": "智能匹配歌词",
+      "audio-recognition": "听歌识曲"
     },
     "network": {
       "host": "主机",

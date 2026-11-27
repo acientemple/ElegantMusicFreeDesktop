@@ -457,7 +457,19 @@
       "toggle-desktop-lyric": "Toggle Desktop Lyric",
       "like/dislike": "Like/Dislike Current Song",
       "no_short_cut": "None",
-      "toggle-main-window-visible": "Show/Hide Main Window"
+      "toggle-main-window-visible": "Show/Hide Main Window",
+      "seek-backward-long": "Seek Backward 30s",
+      "seek-forward-long": "Seek Forward 30s",
+      "toggle-mute": "Mute/Unmute",
+      "toggle-repeat-mode": "Cycle Repeat Mode (Queue/Loop/Shuffle)",
+      "toggle-music-detail": "Show/Hide Music Detail",
+      "toggle-play-list": "Show/Hide Play Queue",
+      "toggle-minimode": "Toggle Mini Mode",
+      "search-full-version": "Search Full Version",
+      "search-mv": "Search MV",
+      "search-lyric": "Search Lyrics",
+      "smart-lyric": "Smart Match Lyrics",
+      "audio-recognition": "Recognize Song"
     },
     "network": {
       "host": "Host",
