@@ -212,7 +212,8 @@
     "watch_mv": "观看 MV",
     "search_full_version": "搜索歌曲",
     "search_mv": "搜索 MV",
-    "edit_music_meta": "歌曲信息"
+    "edit_music_meta": "歌曲信息",
+    "minimode": "迷你模式"
   },
   "bottom_loading_state": {
     "reached_end": "~~~ 到底啦 ~~~",

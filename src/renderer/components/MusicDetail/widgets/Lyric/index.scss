@@ -28,6 +28,12 @@ $height: 100%;
       }
     }
   }
+
+  /* 贴在面板右上角的那一组（迷你模式按钮） */
+  & .lyric-options-container--top {
+    top: 0;
+    bottom: auto;
+  }
 }
 
 .lyric-container {

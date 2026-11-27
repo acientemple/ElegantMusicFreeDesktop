@@ -212,7 +212,8 @@
     "watch_mv": "觀看 MV",
     "search_full_version": "搜尋歌曲",
     "search_mv": "搜尋 MV",
-    "edit_music_meta": "歌曲資訊"
+    "edit_music_meta": "歌曲資訊",
+    "minimode": "迷你模式"
   },
   "bottom_loading_state": {
     "reached_end": "~~~ 沒有更多了 ~~~",
