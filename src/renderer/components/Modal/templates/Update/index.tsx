@@ -198,8 +198,8 @@ export default function Update(props: IUpdateProps) {
                                 <span>
                                     {progress.total > 0
                                         ? `${formatSize(
-                                              progress.downloaded,
-                                          )} / ${formatSize(progress.total)}`
+                                            progress.downloaded,
+                                        )} / ${formatSize(progress.total)}`
                                         : formatSize(progress.downloaded)}
                                 </span>
                             </div>

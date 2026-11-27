@@ -405,11 +405,11 @@ export function buildSearchQueries(musicItem: {
         coreIndex < 0
             ? prepared.segments
             : [
-                  ...(coreIndex > 0 ? [prepared.segments[coreIndex - 1]] : []),
-                  ...(coreIndex + 1 < prepared.segments.length
-                      ? [prepared.segments[coreIndex + 1]]
-                      : []),
-              ];
+                ...(coreIndex > 0 ? [prepared.segments[coreIndex - 1]] : []),
+                ...(coreIndex + 1 < prepared.segments.length
+                    ? [prepared.segments[coreIndex + 1]]
+                    : []),
+            ];
     const embeddedArtists = neighbourSegments
         .map((segment) => segment.split(/\s+/)[0] ?? "")
         .filter(

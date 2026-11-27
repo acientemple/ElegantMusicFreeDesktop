@@ -154,8 +154,8 @@ export default function PlayerControl({
                 const done = downloadState.downloaded ?? 0;
                 return total
                     ? `${t("modal.mv_player_downloading")} ${Math.round(
-                          (done / total) * 100,
-                      )}%`
+                        (done / total) * 100,
+                    )}%`
                     : t("modal.mv_player_downloading");
             }
             case DownloadState.DONE:

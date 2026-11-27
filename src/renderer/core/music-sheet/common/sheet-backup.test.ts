@@ -26,7 +26,7 @@ test("解析全部歌单导出文件", () => {
 });
 
 test("空歌单列表原样返回空数组", () => {
-    assert.deepEqual(parseSheetBackupJson('{"musicSheets":[]}'), []);
+    assert.deepEqual(parseSheetBackupJson("{\"musicSheets\":[]}"), []);
 });
 
 test("带 UTF-8 BOM 的文件可以解析", () => {
@@ -49,21 +49,21 @@ test("缺少 musicSheets 抛 InvalidSheetBackupError", () => {
 
 test("musicSheets 不是数组抛 InvalidSheetBackupError", () => {
     assert.throws(
-        () => parseSheetBackupJson('{"musicSheets":{}}'),
+        () => parseSheetBackupJson("{\"musicSheets\":{}}"),
         InvalidSheetBackupError,
     );
 });
 
 test("musicSheets 里有 null 抛 InvalidSheetBackupError", () => {
     assert.throws(
-        () => parseSheetBackupJson('{"musicSheets":[null]}'),
+        () => parseSheetBackupJson("{\"musicSheets\":[null]}"),
         InvalidSheetBackupError,
     );
 });
 
 test("musicList 不是数组抛 InvalidSheetBackupError", () => {
     assert.throws(
-        () => parseSheetBackupJson('{"musicSheets":[{"title":"x","musicList":{}}]}'),
+        () => parseSheetBackupJson("{\"musicSheets\":[{\"title\":\"x\",\"musicList\":{}}]}"),
         InvalidSheetBackupError,
     );
 });

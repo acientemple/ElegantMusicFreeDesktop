@@ -40,6 +40,8 @@ export default [
             "prefer-const": "warn",
             // 样式规则迁移到 ESLint Stylistic
             "@stylistic/quotes": ["warn", "double"],
+            // 正则里出现全角空格之类的特殊空白是故意的（用来匹配全角空格）
+            "no-irregular-whitespace": ["error", { skipRegExps: true }],
             "@stylistic/object-curly-spacing": ["error", "always"],
             "@stylistic/indent": ["error", 4], // 统一缩进
             "@stylistic/semi": ["error", "always"], // 强制分号

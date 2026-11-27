@@ -16,8 +16,7 @@ import {
     checkCandidateLyrics,
     hasLyric,
     searchLyricCandidatesByText,
-} from "@renderer/core/smart-lyric";
-import { ISmartLyricCandidate } from "@renderer/core/smart-lyric";
+    ISmartLyricCandidate } from "@renderer/core/smart-lyric";
 import { linkLyricText } from "@renderer/core/link-lyric";
 import AppConfig from "@shared/app-config/renderer";
 import trackPlayer from "@renderer/core/track-player";
@@ -227,11 +226,11 @@ export default function AudioRecognition(props: IProps) {
                             <span>
                                 {progress > 0
                                     ? t(
-                                          "modal.audio_recognition_recording_progress",
-                                          {
-                                              percent: Math.round(progress * 100),
-                                          },
-                                      )
+                                        "modal.audio_recognition_recording_progress",
+                                        {
+                                            percent: Math.round(progress * 100),
+                                        },
+                                    )
                                     : t("modal.audio_recognition_capturing")}
                             </span>
                         ) : null}

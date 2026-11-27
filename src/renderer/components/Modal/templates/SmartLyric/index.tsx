@@ -15,8 +15,7 @@ import {
     hasLyric,
     recordCandidates,
     searchLyricCandidates,
-} from "@renderer/core/smart-lyric";
-import { ISmartLyricCandidate } from "@renderer/core/smart-lyric";
+    ISmartLyricCandidate } from "@renderer/core/smart-lyric";
 import trackPlayer from "@renderer/core/track-player";
 import { hideModal } from "../..";
 import { applyMusicMeta } from "@/renderer/core/music-meta";
@@ -71,7 +70,7 @@ export default function SmartLyric(props: IProps) {
             return;
         }
         void doSearch();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // 只在弹窗打开时检索一次，依赖数组故意留空
     }, []);
 
     const handleSelect = useCallback(
