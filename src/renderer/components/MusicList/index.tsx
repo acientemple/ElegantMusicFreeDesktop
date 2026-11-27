@@ -233,7 +233,6 @@ export function showMusicContextMenu(
             onClick() {
                 showModal("MusicAlternatives", {
                     musicItem: musicItems as IMusic.IMusicItem,
-                    sheetType,
                 });
             },
         },

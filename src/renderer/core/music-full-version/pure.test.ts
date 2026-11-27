@@ -5,6 +5,7 @@ import {
     isPreviewDuration,
     isSameSong,
     pickFullVersion,
+    pickSheetIdsWithSong,
     PREVIEW_MAX_DURATION,
 } from "./pure.ts";
 
@@ -140,5 +141,35 @@ test("没有合格的候选就返回 null", () => {
             { platform: "q", id: "2", duration: 20 },
         ]),
         null,
+    );
+});
+
+test("换完整版要覆盖所有包含这首歌的歌单", () => {
+    const song = { platform: "wy", id: "123" };
+    const sheets = [
+        { id: "favorite", musicList: [{ platform: "wy", id: "123" }] },
+        { id: "sheet-a", musicList: [{ platform: "wy", id: "999" }] },
+        {
+            id: "sheet-b",
+            musicList: [
+                { platform: "wy", id: "123" },
+                { platform: "qq", id: "456" },
+            ],
+        },
+        { id: "sheet-c" },
+    ];
+    // sheet-a 里没有这首歌，不该被改；sheet-c 没有 musicList 也不能炸
+    assert.deepStrictEqual(pickSheetIdsWithSong(sheets, song), [
+        "favorite",
+        "sheet-b",
+    ]);
+});
+
+test("没有歌单、没有原曲时都不出错", () => {
+    assert.deepStrictEqual(pickSheetIdsWithSong([], { platform: "a", id: "1" }), []);
+    assert.deepStrictEqual(pickSheetIdsWithSong(null, null), []);
+    assert.deepStrictEqual(
+        pickSheetIdsWithSong([{ id: "x", musicList: [] }], null),
+        [],
     );
 });

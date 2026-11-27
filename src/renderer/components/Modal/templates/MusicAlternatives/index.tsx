@@ -10,7 +10,7 @@ import albumImg from "@/assets/imgs/album-cover.jpg";
 import { setFallbackAlbum } from "@/renderer/utils/img-on-error";
 import PluginManager, { useSupportedPlugin } from "@shared/plugin-manager/renderer";
 import trackPlayer from "@renderer/core/track-player";
-import MusicSheet from "@/renderer/core/music-sheet";
+import { replaceInSheets } from "@renderer/core/music-full-version";
 import { hideModal } from "../..";
 import { getMediaPrimaryKey } from "@/common/media-util";
 import { applyMusicMeta } from "@/renderer/core/music-meta";
@@ -18,8 +18,6 @@ import SvgAsset from "@/renderer/components/SvgAsset";
 
 interface IProps {
     musicItem?: IMusic.IMusicItem;
-    /** 本地歌单 id / "play-list"（播放队列）/ undefined（无归属） */
-    sheetType?: string;
 }
 
 function formatDuration(duration?: number | null) {
@@ -32,7 +30,7 @@ function formatDuration(duration?: number | null) {
 }
 
 export default function MusicAlternatives(props: IProps) {
-    const { musicItem, sheetType } = props;
+    const { musicItem } = props;
     const { t } = useTranslation();
     /** 展示用：套用用户手动改过的信息，插件调用仍用原始条目 */
     const displayItem = useMemo(
@@ -43,19 +41,18 @@ export default function MusicAlternatives(props: IProps) {
     /**
      * 用完整版覆盖原来的不完整版本：所在本地歌单与播放队列都替换，
      * 正在播放的那一首从头开始播。
+     *
+     * 歌单不按来源区分：只要这首歌出现在哪张歌单里，就把那一条换成完整版。
+     * 从歌词播放界面打开时拿不到所在歌单，从歌单右键打开时同一首歌也可能在
+     * 别的歌单里留着旧版本 —— 统一按「所有含这首歌的歌单」替换，
+     * 用户在哪个列表里看都是替换后的版本。
      */
     async function applyFullVersion(
         original: IMusic.IMusicItem,
         alternative: IMusic.IMusicItem,
     ) {
         try {
-            if (sheetType && sheetType !== "play-list") {
-                await MusicSheet.frontend.replaceMusicInSheet(
-                    original,
-                    alternative,
-                    sheetType,
-                );
-            }
+            await replaceInSheets(original, alternative);
             await trackPlayer.replaceMusic(original, alternative, {
                 play: true,
                 restartFromStart: true,

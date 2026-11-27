@@ -10,13 +10,14 @@
  * 跟手动弹窗用的是同一套机制，应用侧只负责调度与挑选。
  */
 
-import { getMediaPrimaryKey, isSameMedia } from "@/common/media-util";
+import { getMediaPrimaryKey } from "@/common/media-util";
 import { delay } from "@/common/time-util";
 import MusicSheet from "@renderer/core/music-sheet";
 import PluginManager from "@shared/plugin-manager/renderer";
 import {
     isPreviewDuration,
     pickFullVersion,
+    pickSheetIdsWithSong,
     PREVIEW_MAX_DURATION,
 } from "./pure.ts";
 
@@ -117,26 +118,26 @@ export async function findFullVersion(
 /**
  * 把本地歌单里的同一首也换成完整版。
  * 换了歌单里的条目，下次从歌单再播时不用重新检索。
+ *
+ * 覆盖**所有**包含这首歌的歌单：用户在哪个列表里看都应该是新版本。
  */
 export async function replaceInSheets(
     original: IMusic.IMusicItem,
     replacement: IMusic.IMusicItem,
 ) {
-    try {
-        const sheets = MusicSheet.frontend.getAllSheets() ?? [];
-        for (const sheet of sheets) {
-            const list = sheet.musicList ?? [];
-            if (!list.some((it) => isSameMedia(it, original))) {
-                continue;
-            }
+    const sheets = MusicSheet.frontend.getAllSheets() ?? [];
+    const sheetIds = pickSheetIdsWithSong(sheets, original);
+    for (const sheetId of sheetIds) {
+        // 每个歌单单独兜底：一个歌单写失败不影响其它歌单
+        try {
             await MusicSheet.frontend.replaceMusicInSheet(
                 original,
                 replacement,
-                sheet.id,
+                sheetId,
             );
+        } catch (e) {
+            console.log(e);
         }
-    } catch (e) {
-        console.log(e);
     }
 }
 

@@ -53,6 +53,34 @@ export function isPreviewDuration(duration?: number | null): boolean {
 }
 
 /**
+ * 歌单里可能只存着条目的引用（platform + id），够用来判断是不是同一首。
+ */
+export interface ISheetRef {
+    id: string;
+    musicList?: IVersionItem[] | null;
+}
+
+/**
+ * 找出所有包含这首歌的歌单。
+ *
+ * 换完整版时要覆盖**所有**含这首歌的歌单：用户在哪个列表里看，
+ * 都应该是替换后的版本，而不是只有当前打开的那一张被换掉。
+ */
+export function pickSheetIdsWithSong(
+    sheets: ISheetRef[] | null | undefined,
+    original: IVersionItem | null | undefined,
+): string[] {
+    if (!original) {
+        return [];
+    }
+    return (sheets ?? [])
+        .filter((sheet) =>
+            (sheet.musicList ?? []).some((it) => isSameSong(it, original)),
+        )
+        .map((sheet) => sheet.id);
+}
+
+/**
  * 候选够不够格算完整版：
  * - 不能是它自己
  * - 必须有时长，否则判断不了
