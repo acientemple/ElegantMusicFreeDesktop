@@ -212,7 +212,8 @@
     "watch_mv": "Watch MV",
     "search_full_version": "Search Song",
     "search_mv": "Search MV",
-    "edit_music_meta": "Song Info"
+    "edit_music_meta": "Song Info",
+    "minimode": "Minimode"
   },
   "bottom_loading_state": {
     "reached_end": "~~~ End ~~~",
